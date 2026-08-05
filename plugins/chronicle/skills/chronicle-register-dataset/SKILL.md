@@ -103,7 +103,8 @@ into indexed columns for cheap filtered listing and projects the rest to search.
     "n_dims": 5,                                // max rank across variables ("cardinality of shape")
     "precisions": ["fp32", "fp64"],             // controlled vocab: fp16, bf16, fp32, fp64
     "variable_count": 3,
-    "num_samples": 1000                         // leading-dim cardinality, when meaningful
+    "num_samples": 1000,                        // leading-dim cardinality, when meaningful
+    "parameter_count": 2                        // physical/PDE parameters spanned; derived from pde.parameters when absent
   },
 
   // Free-form, arbitrary keys (string → string). Each becomes an exact-match
@@ -130,7 +131,10 @@ into indexed columns for cheap filtered listing and projects the rest to search.
   `resolution` — and the **per-variable `variables` table** (`name`, `role`,
   `shape`, `dtype`, `units`). Accurate `variables` make the `structural` roll-ups
   (`n_dims` = max rank, `precisions` = distinct float dtypes, `variable_count`,
-  `num_samples`) correct, which is what powers cheap filtered listing.
+  `num_samples`) correct, which is what powers cheap filtered listing. Name every
+  physical parameter in `pde.parameters` — its entry count is promoted as the
+  dataset's `parameter_count` facet (or declare `structural.parameter_count`
+  explicitly, which wins) and shows on the dataset card in the UI.
 - **Use `properties` for anything else worth faceting** — forcing, solver,
   dealiasing, generator — with **stable, lowercased keys** (keys are normalized
   lowercase, `=` is reserved as the separator; values are coerced to strings).

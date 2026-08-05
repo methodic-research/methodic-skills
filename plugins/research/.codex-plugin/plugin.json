@@ -1,0 +1,44 @@
+{
+  "name": "research",
+  "version": "0.1.0",
+  "description": "Research-workflow skills for Chronicle — synthesis, results evaluation, literature review, and paper authoring, with the researcher as the approval gate.",
+  "author": {
+    "name": "Methodic Labs",
+    "email": "support@methodiclabs.ai",
+    "url": "https://docs.methodiclabs.ai"
+  },
+  "homepage": "https://docs.methodiclabs.ai",
+  "repository": "https://github.com/methodic-research/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "chronicle",
+    "research",
+    "workflows",
+    "synthesis",
+    "papers",
+    "methodic"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Research",
+    "shortDescription": "Research workflows over the Chronicle platform.",
+    "longDescription": "Multi-step research practices that compose the chronicle plugin's mechanics, driven by your own agent with you as the approval gate: synthesis (ground in the experiment record + literature, then propose and queue what to try next with pre-registered hypotheses), evaluate-results (judge runs against what they pre-registered; optionally persist findings, lessons, and review-gated reports), literature-review (survey the internal corpus + external literature, register and cite what matters), and paper-authoring (author a LaTeX paper locally and attach it so Chronicle compiles and records it). Requires the chronicle plugin from the same marketplace.",
+    "developerName": "Methodic Labs",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://docs.methodiclabs.ai",
+    "privacyPolicyURL": "https://methodiclabs.ai/privacy",
+    "termsOfServiceURL": "https://methodiclabs.ai/terms",
+    "defaultPrompt": [
+      "Run a synthesis pass on my experiment and propose what to try next.",
+      "Evaluate my experiment's results against their pre-registered hypotheses.",
+      "Draft a LaTeX paper from my experiment's record."
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

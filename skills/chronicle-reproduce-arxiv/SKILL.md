@@ -119,8 +119,8 @@ documents only what reproduction adds. Credentials from `~/.methodic` (or
       "prompt": <import instructions>, "input_asset_ids": ["<arxiv asset
       id>"] }`. One call = task create + first message; task creation eagerly
       dispatches the agent engine and the message cold-starts it. The
-      `prompt` must tell the in-tartarus agent to follow the
-      **`chronicle-task`** contract (`get_task` → work → `link_task_output`
+      `prompt` must tell the in-tartarus agent to follow the task
+      contract (`chronicle.get_task` → work → `chronicle.link_task_output`
       every produced asset) and then this import core: clone `<repo>` in the
       container, evaluate, push to `import/<slug>` using its task-scoped
       key's git token, attach the paper + docs, `write_report`, anchor the
