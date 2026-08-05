@@ -172,15 +172,6 @@ print(f"Registered {asset_type} {asset_id} (pending review) on experiment {exper
 If `write_research_report` is set (experiment scope), repeat step 3 with
 `asset_type="research_report"` and a longer-form body.
 
-**Distillation provenance (optional).** The provenance surface survives the
-managed-agent removal: an agent that structures this work as an explicit
-distillation job — multi-round review of the draft, chunked extraction over
-large outputs — can record each round / extraction call via
-`chronicle.record_distill_round` / `chronicle.record_distill_extract`
-(`POST /v1/distillations/{job_id}/round|/extract`), attributing them to the
-experiment. A single-pass in-context synthesis has nothing to record — skip
-it.
-
 ## Research lessons (check before you conclude)
 
 Before drafting, list the experiment's **active research lessons** —
@@ -280,8 +271,7 @@ Tell the user:
   and `experiment.conclude` no longer spawns one (it 409s
   `takeaways_report_missing` instead). This skill — with the research plugin's
   `evaluate-results` — is the distillation path now. What survives unchanged:
-  the report types, the review gate, and the provenance tools
-  (`chronicle.record_distill_round` / `record_distill_extract`).
+  the report types and the review gate.
 
 ## Requires
 
