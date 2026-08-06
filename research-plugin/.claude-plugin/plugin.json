@@ -1,0 +1,12 @@
+{
+  "$schema": "https://code.claude.com/schemas/plugin.json",
+  "name": "research",
+  "version": "0.1.0",
+  "description": "Research-workflow skills for the Chronicle platform — the workflow layer over the chronicle plugin's mechanics, driven by your own agent with you as the approval gate. Four multi-step practices: synthesis (ground in the experiment record + literature, then propose and queue what to try next — pre-registered hypotheses required, nothing queued without your acceptance), evaluate-results (judge runs and variations against their pre-registered hypotheses; reading-only is first-class, optionally persist findings, lessons, and review-gated reports), literature-review (survey the internal corpus + external literature, register and cite what matters), and paper-authoring (author a LaTeX paper locally from the experiment record and attach it so Chronicle compiles and records it). Requires the chronicle plugin (skills + bundled MCP server) from the same marketplace.",
+  "homepage": "https://docs.methodiclabs.ai",
+  "author": {
+    "name": "Methodic Labs",
+    "email": "support@methodiclabs.ai"
+  },
+  "license": "Apache-2.0"
+}

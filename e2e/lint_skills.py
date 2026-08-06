@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Static lint for the methodic skills — the cheap, no-secret CI tier.
 
-Runs on every push. Two checks, no LLM and no network:
+Runs on every push. Three checks, no LLM and no network:
 
-1. Every `skills/*/SKILL.md` has YAML frontmatter with `name` + `description`.
-2. The Codex package mirror under `plugins/chronicle` is in sync for skills and
-   the MCP launcher files.
-3. No **stale API surface** in any `skills/*/SKILL.md` — the retired scope/auth
+1. Every SKILL.md (chronicle plugin: `skills/*/SKILL.md`; research plugin:
+   `research-plugin/skills/*/SKILL.md`) has YAML frontmatter with `name` +
+   `description`.
+2. The Codex package mirrors are in sync: `plugins/chronicle` mirrors the root
+   `skills/` + `mcp/` (the chronicle plugin lives at the repo root), and
+   `plugins/research` mirrors `research-plugin/skills/` (the research plugin
+   ships no MCP server of its own — it relies on the chronicle plugin's).
+3. No **stale API surface** in any SKILL.md — the retired scope/auth
    mechanisms must not creep back into what an agent executes (see
    `runes/chronicle/designs/auth.md` "API key authorization" + ui-scope.md).
    Forbidden: the ambient active-scope override (`active_org`,
@@ -24,10 +28,18 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Canonical skill sources: the chronicle plugin is the repo root; the research
+# plugin lives under research-plugin/.
 SKILLS_DIR = ROOT / "skills"
+RESEARCH_SKILLS_DIR = ROOT / "research-plugin" / "skills"
+
 CODEX_PLUGIN_DIR = ROOT / "plugins" / "chronicle"
 CODEX_SKILLS_DIR = CODEX_PLUGIN_DIR / "skills"
 CODEX_MCP_DIR = CODEX_PLUGIN_DIR / "mcp"
+
+CODEX_RESEARCH_PLUGIN_DIR = ROOT / "plugins" / "research"
+CODEX_RESEARCH_SKILLS_DIR = CODEX_RESEARCH_PLUGIN_DIR / "skills"
 
 # (pattern, why) — regex per line, case-sensitive where it matters. Patterns
 # are word-bounded where a *sanctioned* phrase shares a prefix with a retired
@@ -49,8 +61,14 @@ FORBIDDEN: list[tuple[re.Pattern[str], str]] = [
 # retired API. The top-level README is deliberately NOT scanned: its "Active
 # scope" convention legitimately *names* the retired mechanisms to forbid them,
 # which would be a false positive.
+def _canonical_skill_mds() -> list[pathlib.Path]:
+    return sorted(SKILLS_DIR.glob("*/SKILL.md")) + sorted(
+        RESEARCH_SKILLS_DIR.glob("*/SKILL.md")
+    )
+
+
 def _scan_targets() -> list[pathlib.Path]:
-    return sorted(SKILLS_DIR.glob("*/SKILL.md"))
+    return _canonical_skill_mds()
 
 
 def _check_frontmatter(skill_md: pathlib.Path, errors: list[str]) -> None:
@@ -78,11 +96,38 @@ def _check_stale_surface(path: pathlib.Path, errors: list[str]) -> None:
                 )
 
 
+def _check_skills_mirror(
+    canonical_skills_dir: pathlib.Path,
+    mirror_skills_dir: pathlib.Path,
+    mirror_label: str,
+    errors: list[str],
+) -> None:
+    """Byte-for-byte skill parity between a canonical skills dir and its mirror."""
+    for skill_md in sorted(canonical_skills_dir.glob("*/SKILL.md")):
+        mirrored = mirror_skills_dir / skill_md.parent.name / "SKILL.md"
+        if not mirrored.is_file():
+            errors.append(f"codex mirror missing {mirrored.relative_to(ROOT)}")
+            continue
+        if skill_md.read_bytes() != mirrored.read_bytes():
+            errors.append(
+                "codex mirror drift: "
+                f"{skill_md.relative_to(ROOT)} != {mirrored.relative_to(ROOT)}"
+            )
+
+    canonical_names = {p.parent.name for p in canonical_skills_dir.glob("*/SKILL.md")}
+    mirror_names = {p.parent.name for p in mirror_skills_dir.glob("*/SKILL.md")}
+    for extra in sorted(mirror_names - canonical_names):
+        errors.append(f"codex mirror has extra skill {mirror_label}/skills/{extra}")
+
+
 def _check_codex_mirror(errors: list[str]) -> None:
     """The Codex marketplace requires a plugin subdirectory with real files.
 
-    Keep it byte-for-byte mirrored from the canonical root `skills/` and `mcp/`
-    directories so Claude Code and Codex execute the same instructions/tools.
+    Keep `plugins/chronicle` byte-for-byte mirrored from the canonical root
+    `skills/` and `mcp/` directories, and `plugins/research` mirrored from
+    `research-plugin/skills/`, so Claude Code and Codex execute the same
+    instructions/tools. The research mirror carries no `mcp/` — the research
+    plugin ships no MCP server of its own.
     """
     if not CODEX_PLUGIN_DIR.is_dir():
         errors.append("codex mirror missing: plugins/chronicle")
@@ -94,23 +139,7 @@ def _check_codex_mirror(errors: list[str]) -> None:
         errors.append("codex mirror missing: plugins/chronicle/mcp")
         return
 
-    for skill_md in sorted(SKILLS_DIR.glob("*/SKILL.md")):
-        mirrored = CODEX_SKILLS_DIR / skill_md.parent.name / "SKILL.md"
-        if not mirrored.is_file():
-            errors.append(f"codex mirror missing {mirrored.relative_to(ROOT)}")
-            continue
-        if skill_md.read_bytes() != mirrored.read_bytes():
-            errors.append(
-                "codex mirror drift: "
-                f"{skill_md.relative_to(ROOT)} != {mirrored.relative_to(ROOT)}"
-            )
-
-    root_skill_names = {p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")}
-    mirror_skill_names = {
-        p.parent.name for p in CODEX_SKILLS_DIR.glob("*/SKILL.md")
-    }
-    for extra in sorted(mirror_skill_names - root_skill_names):
-        errors.append(f"codex mirror has extra skill plugins/chronicle/skills/{extra}")
+    _check_skills_mirror(SKILLS_DIR, CODEX_SKILLS_DIR, "plugins/chronicle", errors)
 
     for rel in (
         "server.js",
@@ -131,14 +160,27 @@ def _check_codex_mirror(errors: list[str]) -> None:
                 f"{canonical.relative_to(ROOT)} != {mirrored.relative_to(ROOT)}"
             )
 
+    if not CODEX_RESEARCH_PLUGIN_DIR.is_dir():
+        errors.append("codex mirror missing: plugins/research")
+        return
+    if not CODEX_RESEARCH_SKILLS_DIR.is_dir():
+        errors.append("codex mirror missing: plugins/research/skills")
+        return
+    _check_skills_mirror(
+        RESEARCH_SKILLS_DIR, CODEX_RESEARCH_SKILLS_DIR, "plugins/research", errors
+    )
+
 
 def main() -> int:
     if not SKILLS_DIR.is_dir():
         print(f"lint: no skills/ dir at {SKILLS_DIR}", file=sys.stderr)
         return 1
+    if not RESEARCH_SKILLS_DIR.is_dir():
+        print(f"lint: no research-plugin skills dir at {RESEARCH_SKILLS_DIR}", file=sys.stderr)
+        return 1
 
     errors: list[str] = []
-    skill_mds = sorted(SKILLS_DIR.glob("*/SKILL.md"))
+    skill_mds = _canonical_skill_mds()
     if not skill_mds:
         errors.append("lint: no skills/*/SKILL.md found")
     for skill_md in skill_mds:
@@ -153,7 +195,12 @@ def main() -> int:
             print(f"  - {e}", file=sys.stderr)
         return 1
 
-    print(f"Skill lint OK — {len(skill_mds)} skills, no stale API surface.")
+    n_chronicle = len(list(SKILLS_DIR.glob("*/SKILL.md")))
+    n_research = len(list(RESEARCH_SKILLS_DIR.glob("*/SKILL.md")))
+    print(
+        f"Skill lint OK — {n_chronicle} chronicle + {n_research} research skills, "
+        "no stale API surface."
+    )
     return 0
 
 

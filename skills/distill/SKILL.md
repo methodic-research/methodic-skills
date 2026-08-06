@@ -5,8 +5,9 @@ description: |
   ACROSS ALL its variations into a single review-gated report — phrases like
   "distill the experiment", "synthesize the findings", "write the takeaways
   across all variations", "summarize what every variation showed", "give me the
-  final report for this experiment". This is the agent-side equivalent of the
-  platform's managed distillation: it pulls every variation (or one variation,
+  final report for this experiment". This IS the platform's distillation path
+  (the managed distillation agent was removed with the autoresearch fleet,
+  methodic#642): it pulls every variation (or one variation,
   or a filtered corpus), reads each one's outputs + W&B metrics, and writes a
   takeaways_report (experiment scope), variation_report (one variation), or
   research_report (corpus). The report is registered REVIEW-GATED (not
@@ -19,12 +20,13 @@ description: |
 # Distill experiment
 
 Synthesize an experiment's findings **across all of its variations** into one
-report — the agent-side counterpart to the platform's managed distillation. You
-do the work yourself: pull every variation, read its outputs and real W&B
-metrics, reason across them, and register the synthesis as a report.
+report. This is **the** distillation path: the platform's managed distillation
+agent was removed with the autoresearch fleet (methodic#642), so the calling
+agent does the work itself — pull every variation, read its outputs and real
+W&B metrics, reason across them, and register the synthesis as a report.
 
-Two disciplines define this skill, both inherited from the managed distillation
-flow:
+Two disciplines define this skill, both carried over from the retired managed
+distillation flow:
 
 1. **Review-gated, not finalized.** The report is registered `pending` with
    `review_required` — it is **not** auto-finalized. It stays pending until the
@@ -231,9 +233,13 @@ Tell the user:
 2. How to ratify it: approve in the UI, or `PUT /v1/assets/{id}/approve`
    (reject with `.../reject`).
 3. For an experiment-scope `takeaways_report`: that approving it is what unblocks
-   `experiment.conclude`. If a takeaways report **already** existed, note that
-   concluding will require choosing `on_exist_action: keep | regenerate` (the
-   UI prompts; the API 409s without it).
+   `experiment.conclude`. Concluding with **no** takeaways report returns `409
+   takeaways_report_missing` — nothing is spawned server-side; this skill is how
+   the report gets written, then conclude is retried. If a takeaways report
+   **already** existed, concluding requires choosing `on_exist_action: keep |
+   regenerate` (the UI prompts; the API 409s `takeaways_report_exists` without
+   it) — `regenerate` supersedes the old report and returns
+   `takeaways_report_missing` until a fresh one is authored here and approved.
 4. Explicitly flag whether `## What didn't work` is substantive — if the agent
    left it thin, say so.
 
@@ -244,8 +250,7 @@ Tell the user:
 - **`pending_reasons` not accepted** — the report would auto-finalize. Do **not**
   fall back to a finalized write for a cross-variation distillation; the
   review-gate is the point. Surface that the SDK/server needs the review-gated
-  create path (the managed distillation flow uses it via `POST /v1/assets` with
-  `pending_reasons`).
+  create path (`POST /v1/assets` with `pending_reasons`).
 - **No variations in scope** — an experiment with zero non-retracted variations
   has nothing to distill; tell the user rather than writing an empty report.
 - **W&B unavailable for a variation** — record "no metrics" for that variation
@@ -253,18 +258,20 @@ Tell the user:
 - **Empty `## What didn't work`** — state there were no negative results so the
   absence is a recorded choice, not a gap.
 
-## Distinction from related skills + the managed flow
+## Distinction from related skills + the retired managed flow
 
 - **chronicle-write-report** — single experiment/variation, **finalizes
   immediately**. Use it for a one-off write-up; use **this** skill to synthesize
   across all variations into a review-gated report.
 - **chronicle-research-survey** — prior-art synthesis (pre-experiment literature
   review), not results.
-- **Managed distillation** (`POST /v1/experiments/{id}/distill` /
-  `chronicle.distill`) — spawns the platform's own distillation agent to do this
-  work server-side, on its own compute. This skill is the **agent-side** path:
-  the calling agent does the synthesis itself. Same report types, same
-  review-gate, attribution by the calling key.
+- **Managed distillation — removed** (methodic#642, with the autoresearch
+  fleet): `POST /v1/experiments/{id}/distill`, the `chronicle.distill` spawn
+  tool, the distillation dispatch, and the auto-distill triggers are all gone,
+  and `experiment.conclude` no longer spawns one (it 409s
+  `takeaways_report_missing` instead). This skill — with the research plugin's
+  `evaluate-results` — is the distillation path now. What survives unchanged:
+  the report types and the review gate.
 
 ## Requires
 

@@ -145,10 +145,11 @@ def wandb_metrics_for_run(chronicle, experiment_id, variation, run):
     }
 ```
 
-The agent fetches W&B itself — **no chronicle-server W&B key needed**: locally
-your env already has `WANDB_API_KEY`; a managed (tartarus) distiller is
-provisioned one. Cite the real `summary` values in "What worked", and use
-`history` to render a loss-curve figure (uploaded in step 1).
+The agent fetches W&B itself — **no chronicle-server W&B key needed**: your
+env already has `WANDB_API_KEY`. (Cross-variation synthesis works the same
+agent-side way — see `chronicle-distill`; the managed tartarus distiller was
+removed by methodic#642.) Cite the real `summary` values in "What worked", and
+use `history` to render a loss-curve figure (uploaded in step 1).
 
 ## Inputs
 

@@ -14,7 +14,7 @@ nothing you aren't. And lineage travels with the record — parents,
 retractions, invalidated outputs — so new work builds on results whose
 provenance and current standing are explicit.
 
-This repo is a marketplace for Claude Code and Codex (`methodic`) containing one plugin (`chronicle`).
+This repo is a marketplace for Claude Code and Codex (`methodic`) containing two plugins: **`chronicle`** — the mechanics layer, one skill per platform verb (upload a dataset, write a report, cite a DOI, run a variation) plus the bundled MCP server — and **`research`** — the workflow layer, multi-step research practices (synthesis, results evaluation, literature review, paper authoring) that compose those mechanics, with you as the approval gate. Install both; the research skills invoke the chronicle ones by name.
 
 ## Getting started
 
@@ -32,14 +32,16 @@ This repo is a marketplace for Claude Code and Codex (`methodic`) containing one
 > pip install methodic-research
 > ```
 > ```text
-> # 2. Claude Code: install the plugin from the marketplace.
+> # 2. Claude Code: install the plugins from the marketplace.
 > /plugin marketplace add methodic-research/skills
 > /plugin install chronicle
+> /plugin install research
 > ```
 > ```bash
 > # Codex equivalent:
 > codex plugin marketplace add methodic-research/skills
 > codex plugin add chronicle@methodic
+> codex plugin add research@methodic
 > ```
 >
 > That's the whole default path — once the plugin is installed you can start
@@ -112,14 +114,17 @@ What the setup command wrote:
   `CHRONICLE_SERVER_URL`. Full resolution order in the
   [auth guide](https://docs.methodiclabs.ai/guide/auth/).
 
-### 2. Install the plugin (the skills)
+### 2. Install the plugins (the skills)
 
 Inside Claude Code:
 
 ```text
 /plugin marketplace add methodic-research/skills
 /plugin install chronicle
+/plugin install research
 ```
+
+`chronicle` is the mechanics layer (platform verbs + the bundled MCP server); `research` is the workflow layer that composes it — installing `research` without `chronicle` gets you skills that immediately tell you to install both.
 
 That's it — with step 1 done, you can start immediately: the skills auto-trigger by intent ("survey the literature on …", "propose an experiment for …", "make a variation that …").
 
@@ -128,6 +133,7 @@ That's it — with step 1 done, you can start immediately: the skills auto-trigg
 ```text
 /plugin marketplace update methodic
 /plugin update chronicle@methodic
+/plugin update research@methodic
 ```
 
 (From a shell, use the qualified `chronicle@methodic` name; the `/plugin` menu inside Claude Code runs the same two steps interactively.) An install that's been sitting on an old version is the usual reason new skills or the bundled MCP server appear "missing".
@@ -150,6 +156,7 @@ Inside Codex:
 ```bash
 codex plugin marketplace add methodic-research/skills
 codex plugin add chronicle@methodic
+codex plugin add research@methodic
 ```
 
 For local development from a checkout, add the checkout path as the marketplace
@@ -158,11 +165,14 @@ source instead:
 ```bash
 codex plugin marketplace add .
 codex plugin add chronicle@methodic
+codex plugin add research@methodic
 ```
 
-The Codex plugin manifest is `plugins/chronicle/.codex-plugin/plugin.json`; the
-Codex package mirrors the same `skills/` directory and starts the same local
-stdio MCP launcher via `sh ./mcp/launch.sh`.
+The Codex plugin manifests are `plugins/chronicle/.codex-plugin/plugin.json` and
+`plugins/research/.codex-plugin/plugin.json`; the Codex packages mirror the same
+skills directories (`skills/` and `research-plugin/skills/`), and the chronicle
+package starts the same local stdio MCP launcher via `sh ./mcp/launch.sh` (the
+research plugin ships no MCP server of its own — it uses the chronicle one).
 
 ### 3. The MCP tools (bundled — zero config)
 
@@ -197,7 +207,7 @@ To give a whole team a one-trust setup, commit a `.claude/settings.json` to the 
   "extraKnownMarketplaces": {
     "methodic": { "source": { "source": "github", "repo": "methodic-research/skills" } }
   },
-  "enabledPlugins": { "chronicle@methodic": true }
+  "enabledPlugins": { "chronicle@methodic": true, "research@methodic": true }
 }
 ```
 
@@ -213,6 +223,26 @@ The bundle is the same zero-dependency `mcp/server.js` the Claude Code plugin ru
 
 ## What's inside
 
+### The `research` plugin (workflow layer)
+
+Multi-step research practices that compose the chronicle skills below — your
+own agent does the work, you are the approval gate, and every milestone lands
+on the experiment feed via `chronicle.report_activity`. These replace the
+managed autoresearch agent fleet removed by
+[methodic-research/methodic#642](https://github.com/methodic-research/methodic/issues/642):
+the `chronicle-task` and `synthesis-event-handler` skills (the removed task
+agents' and in-container synthesis agent's contracts) are gone with it, and
+these user-side workflows are the replacement.
+
+| Skill | Trigger | What it does |
+|-------|---------|--------------|
+| `synthesis` | "what should we try next", "run a synthesis pass", "propose and queue the next variations" | The aggregate ideation workflow: grounds in the experiment record (lineage, runs, lessons), invokes `evaluate-results` + `literature-review` for the evidence base, drafts pre-registered proposals (hypothesis + expected outcome **required**), and — only for the ones you accept — queues execution: `chronicle.propose_variation` (create + commit + run → the worker job queue) for config-only changes, the variation-authoring skills first for code changes, `chronicle-propose-experiment` for a child experiment. Nothing is committed or queued without your acceptance. |
+| `evaluate-results` | "what do the results say", "did it work", "judge the variations against their hypotheses" | Enumerates variations + runs, pulls the real metrics (`chronicle.wandb_*` mediation tools, `execution_log` assets, attached reports), judges each variation against its pre-registered hypothesis / expected outcome, and presents the what-worked / what-didn't / what's-unexplained read. Reading-only is first-class; on request it persists findings (`chronicle.record_finding`), lessons (`chronicle.record_lesson`), and a durable report via `chronicle-distill` (review-gated takeaways) or `chronicle-write-report`. |
+| `literature-review` | "do a literature review on X", "what does the field say about Y", "ground this in prior art" | The survey workflow over `chronicle-research-survey` (internal corpus + external literature MCP) and `chronicle-publications`: scope the question, run both sources, read the load-bearing sources deeply, register + cite what's worth keeping, synthesize prior art + the gap, optionally persist a `research_report`. No experiment required — "read for yourself" works standalone; anchored to an experiment it links citations as inputs (citation types stay linkable until conclude). |
+| `paper-authoring` | "draft the paper", "write this up as a LaTeX paper", "attach the paper to the experiment" | Gathers the approved record (takeaways + variation reports, figure image assets, lessons, linked citations), authors the LaTeX **locally** in your own working tree / template, and attaches the source (`latex_source` upload + `POST /v1/experiments/{id}/papers`) so Chronicle compiles it (chronicle-tex) into an `imported_report` on the experiment — re-attach on meaningful revisions; each attach is a recorded snapshot. Publishing is yours: Overleaf is just a git remote you hold credentials for; Chronicle records the paper, it is not the venue. |
+
+### The `chronicle` plugin (mechanics layer)
+
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
 | `chronicle-prep-variation` | "create a new variation", "start a fresh variation off this experiment" | Mints a git token, clones the experiment repo, creates a new agent branch with scaffolding, registers it as an open variation. |
@@ -223,13 +253,12 @@ The bundle is the same zero-dependency `mcp/server.js` the Claude Code plugin ru
 | `chronicle-research-survey` | "survey the literature on X", "what's been tried", "research \<topic\>" | Surveys prior art across two corpora — Chronicle's internal experiment history + research docs (`search.history`, lineage) and external arxiv/papers via the configured literature MCP — then synthesizes gaps and optionally saves a `research_report`. Papers and prior work that inform the survey are registered (`register_publication`) and attached as citations on the anchor experiment. |
 | `chronicle-propose-experiment` | "propose an experiment", "create an experiment for this hypothesis" | Turns a hypothesis into a new Chronicle experiment: creates it, attaches the full `hypothesis_report`, links a research prompt, registers + cites the papers behind the hypothesis, and optionally commits. |
 | `chronicle-import-repo` | "import this repo into Chronicle", "set up an experiment from this repo", "how do I connect my local directory" | Turns an **existing local repository** into an open Chronicle experiment: evaluates the checkout (README, paper sources, scripts, deps), confirms title/hypothesis/research-prompt with the user, creates the experiment, pushes the tree to an `import/<slug>` branch of the managed repo and binds it to variation 0 (`set_variation_git_ref`; bundle-path `code_artifact` fallback), attaches LaTeX sources / docs / datasets, writes the `hypothesis_report`, and anchors the primary research prompt. Never commits — the on-ramp from existing work. See [`import.md`](../runes/chronicle/designs/import.md). |
-| `chronicle-reproduce-arxiv` | "reproduce this arxiv paper", "replicate arXiv:2301.12345", "import this paper and its code", "reproduce it on the server / in the background" | Registers an arxiv paper (`chronicle.register_publication`, deduped `arxiv` asset), locates its public code repo (agent judgment, **user-confirmed** — official vs re-implementation), clones it, and runs the `chronicle-import-repo` core with the paper pre-linked as an input and a reproduction-framed research prompt. `--server-side` hands the clone/evaluate/attach half to a tartarus task agent via `chronicle.create_task` (chronicle-server ≥ 0.179.0) and returns the task URL; paper-without-code falls back to a paper-only import. |
+| `chronicle-reproduce-arxiv` | "reproduce this arxiv paper", "replicate arXiv:2301.12345", "import this paper and its code" | Registers an arxiv paper (`chronicle.register_publication`, deduped `arxiv` asset), locates its public code repo (agent judgment, **user-confirmed** — official vs re-implementation), clones it, and runs the `chronicle-import-repo` core with the paper pre-linked as an input and a reproduction-framed research prompt — all locally in this session; paper-without-code falls back to a paper-only import. |
 | `chronicle-author-variation` | "make a variation that doubles the width", "author a variation" | Like prep-variation, but the agent *authors* the new config from your requested change (not a verbatim copy): clone + branch, edit `config.yaml` in-context, push, register the variation. |
 | `chronicle-bundle-variation` | "bundle my code and run it on a worker", "package this external repo or scripts as the variation's code", "ship my training to a managed worker" | Snapshots **external** training code — an external git checkout (`.git` rides along as provenance) or packaged code not under Chronicle's managed repo — into a tarball, registers it as the variation's `code_artifact` input, and creates the variation, so a managed Menlo Park worker pulls the bundle, `pip install`s it, and trains. Prefer over a git-repo + ref when the ref isn't durable (external repos can be deleted or force-pushed); prep/author/fork-variation handle the internal managed repo. |
 | `sagemaker` | "prepare this variation for SageMaker", "run this on SageMaker", "train on spot", "make it resumable on SageMaker" | Makes a variation's training project SageMaker-ready and launches it as a Chronicle-managed SageMaker training job: declares `requirements.txt`, points checkpoints at `/opt/ml/checkpoints` for free Layer-1 S3-sync/spot resume while still pushing the canonical checkpoint to GCS (Layer 2), reads the injected `CHRONICLE_*` lifecycle/metrics env, then bundles as `code_artifact` and provisions with `runner_type: managed_sagemaker` (spot, region, optional customer integration). The SageMaker sibling to `chronicle-bundle-variation`. |
 | `chronicle-rebind-variation-git` | "switch this variation to git", "bind my pushed branch to the variation", "use the git branch instead of the bundle", "rebind variation to a git ref and drop the bundle" | Switches an **open** variation from a bundled `code_artifact` to git-managed code: binds an already-pushed branch/ref via `set_git_ref`, then unlinks + deletes the now-stale bundle (the worker uses the latest `code_artifact`, so the git code wins on commit). Open variations only — git-ref binding and input cleanup freeze at commit. Pairs with `chronicle-bundle-variation`. MCP-direct: `chronicle.set_variation_git_ref` / `list_variation_inputs` / `unlink_variation_input` / `delete_asset`. |
 | `chronicle-write-report` | "write up the findings", "document what we learned", "summarize this variation's results" | Attaches a Markdown + LaTeX-math research write-up (rendered inline with MathJax) to an experiment or variation, with figures uploaded as image assets and embedded by reference. Always includes an explicit "What didn't work" section, and registers + attaches citations for the papers and prior experiments the write-up leaned on. |
-| `chronicle-task` | "work on this task", "do the task", "generate a dataset for this experiment and register it", "gather and summarize this experiment's results" | Execute a Chronicle **task** — a generic, steered agent unit of work (designs/tasks.md) whose context (an experiment / dataset / asset) is **auto-injected**. Reads the injected context (`chronicle.get_task`), does the steered work by composing the purpose-built skills (chronicle-register-dataset / chronicle-write-report / chronicle-dataset), and records every produced asset back to the task (`chronicle.link_task_output`) + wires it to its experiment where the steer implies it (`chronicle.link_asset`). Generic — owns the task *mechanics*, not domain behavior; for an agent running *inside* a task (its id is in the launch env), not for launching one (that's the Tasks SPA / `POST /v1/tasks`). |
 | `chronicle-dataset` | "upload this dataset", "register the training data", "attach this .npz to the variation", "load the dataset" | Uploads **local** dataset bytes (a file → one component; a directory → one component per file, the GB-scale sharding path) as a binary asset with a recorded provenance record (per-component sha256 + size), and links it as an experiment- or variation-level input. Also loads/downloads an existing dataset. Single presigned PUT per component — no multipart. For data already in a bucket + its searchable metadata, see `chronicle-register-dataset`. |
 | `chronicle-register-dataset` | "register the dataset already in gs://…", "catalog this corpus we wrote to the bucket", "describe this dataset — its PDE, boundary conditions, variables", "make this dataset searchable", "fix the dataset's metadata", "what fp64 Navier–Stokes datasets do we have" | Registers a dataset that **already lives at a `gs://`/`s3://` URI** (no byte upload — created `ready` in one call, like `hf_dataset`) and authors its searchable, author-declared **metadata layer**: a LaTeX-bearing description, the governing PDE, boundary/initial conditions, domain geometry, a per-variable shape·dtype·units table, and a free-form `key=value` `properties` facet bag. Also updates that metadata (mutable annotation) and lists/filters the catalog (Postgres-side facets — `n_dims`, `precision`, `pde_family`, `geometry`, size). MCP-direct: `chronicle.{register_dataset,update_dataset_metadata,list_datasets}`. The byte-moving counterpart is `chronicle-dataset`. |
 | `chronicle-collections` | "make a collection for X", "add these papers to the structural-loads collection", "associate this experiment with \<topic\>", "search only within the \<topic\> collection" | Curate a named, ACL'd topic grouping of ANY assets + experiments (overlapping). Associate a collection with an experiment to boost its members in that experiment's searches, or scope a search to a collection as a hard filter. Existence-only ACL; user-request-driven (agents search broadly by default). |
@@ -245,7 +274,6 @@ The bundle is the same zero-dependency `mcp/server.js` the Claude Code plugin ru
 | `chronicle-delete-asset` | "delete these datasets", "clean up the orphaned uploads", "purge the assets I uploaded by mistake" | Hard-deletes **unlinked** assets (no experiment/variation input or output links) after explicit confirmation — row, ACLs, storage bytes, search doc. Linked assets are refused (409) and stay deprecate/invalidate-only. MCP: `chronicle.delete_asset` (creator-guarded). |
 | `triage-error-queue` | "triage the error queue", "process incoming bugs" | Drains the Chronicle error-report triage queue locally. Claims one report, gathers context, decides match/new/noise, submits a structured verdict. Run repeatedly with your agent's loop/automation runner. Cost win: the LLM call stays local instead of using Chronicle's metered server-side LLM key. See [`automated-error-reporting.md`](../runes/chronicle/designs/automated-error-reporting.md) §5.5. |
 | `fix-error-queue` | "fix the next error", "work on a queued bug" | Drains the fix queue locally. Claims one open root_cause, reads the triage agent's writeup, fixes on a branch in your methodic checkout, opens a PR (no autonomous merging). Run repeatedly with your agent's loop/automation runner. See [`automated-error-reporting.md`](../runes/chronicle/designs/automated-error-reporting.md) §8.2. |
-| `synthesis-event-handler` | (inside a tartarus-d synthesis agent) "I just received a `variation_completed` event", "stdin shows `distillation_completed`" | Behavior contract for the synthesis agent's response to M11 continuous-exploration push events. Parses the event, fetches report bodies, decides whether to propose follow-up variations. Not user-invokable — the agent triggers it from its system prompt when an event lands on stdin. See [`agent-flows.md`](../runes/chronicle/designs/agent-flows.md) §17.8. |
 | `methodic-feedback` | "file feedback", "report this", "request a feature" — and **proactively**, whenever the agent hits a gap or issue mid-task | Records feedback to Chronicle's private feedback endpoint the moment it's encountered (Markdown body; `gap` / `feedback` / `feature_request`), then — end of turn, with your confirmation — offers to mirror it as a public GitHub issue on `methodic-research/skills` via your own `gh` (searching for duplicates first). Reproducible errors route to the error pipeline instead of plain feedback. |
 
 Skills reach Chronicle two ways — the **bundled MCP server** (`chronicle.*` tools, no install; preferred for read/CRUD, leaner on tokens) and the [`methodic-research`](https://pypi.org/project/methodic-research/) Python SDK (preferred when importable for the byte-heavy paths — multi-file dataset uploads, agent-side W&B). Neither constructs raw HTTP from the skill itself; if something's missing, add an MCP tool and/or SDK method (and probably an API endpoint), not a network call in the skill.
@@ -257,8 +285,8 @@ Skills reach Chronicle two ways — the **bundled MCP server** (`chronicle.*` to
 How releases reach users:
 
 1. **The repo is public.** `/plugin marketplace add methodic-research/skills` and `codex plugin marketplace add methodic-research/skills` resolve with the user's git credentials, so anyone can add the marketplace and install — no extra access setup.
-2. **Manifests stay correct.** Claude uses `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`; Codex uses `.agents/plugins/marketplace.json` and `plugins/chronicle/.codex-plugin/plugin.json`. Both expose the same skills and the same `mcp/server.js` launcher.
-3. **Versioning drives updates.** `plugin.json`'s `version` (currently `0.4.0`) is the release knob: bump it to publish a new version (users get it via `/plugin marketplace update`). Omit `version` instead to treat every push as a new version during active development.
+2. **Manifests stay correct.** Claude uses `.claude-plugin/marketplace.json` plus each plugin's manifest (`.claude-plugin/plugin.json` for `chronicle` at the repo root, `research-plugin/.claude-plugin/plugin.json` for `research`); Codex uses `.agents/plugins/marketplace.json` and `plugins/{chronicle,research}/.codex-plugin/plugin.json`. Both expose the same skills; the `mcp/server.js` launcher ships with `chronicle` only (the research plugin has no MCP server of its own).
+3. **Versioning drives updates.** Each plugin.json's `version` is its release knob: bump it to publish a new version of that plugin (users get it via `/plugin marketplace update`). Omit `version` instead to treat every push as a new version during active development.
 4. Users then run the two commands in [step 2](#2-install-the-plugin-the-skills).
 
 ## Local development

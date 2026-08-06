@@ -18,6 +18,19 @@
         "ml-ops"
       ],
       "source": "."
+    },
+    {
+      "name": "research",
+      "description": "Research-workflow skills that compose the chronicle plugin's mechanics into multi-step practices, with the researcher as the approval gate: synthesis (ground in the experiment record + literature, then propose and queue what to try next with pre-registered hypotheses), evaluate-results (judge runs and variations against what they pre-registered; optionally persist findings, lessons, and review-gated reports), literature-review (survey the internal corpus + external literature, register and cite what matters), and paper-authoring (author a LaTeX paper locally and attach it so Chronicle compiles and records it). Requires the chronicle plugin.",
+      "category": "research",
+      "tags": [
+        "chronicle",
+        "research",
+        "workflows",
+        "synthesis",
+        "papers"
+      ],
+      "source": "./research-plugin"
     }
   ]
 }
