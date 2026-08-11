@@ -69,6 +69,18 @@ research`) — this skill cannot run without the mechanics layer.
    registered via `chronicle.register_publication` + `chronicle.link_asset`
    (discovered-via-agent-search citations), not just named in prose.
 
+3b. **Check what the platform knows.** Load the failure-mode catalog
+   (`chronicle.list_failure_modes`) — the shared vocabulary for ways
+   research reasoning goes wrong — and note which findings on this
+   experiment carry an evaluation verdict that is *not* `supported`
+   (`running_summary`, each finding's `validation`). A proposal resting on a
+   contested finding has to say so.
+
+   *(The stage-1 support endpoint itself, `chronicle.synthesis_support`, is
+   designed but not yet built — autoresearch-assist.md §5. Until it ships,
+   the catalog and the verdicts are what the platform can tell you at this
+   stage.)*
+
 4. **Propose.** Draft the next variations — or a child experiment, when the
    direction outgrows the current one — each with an explicit
    **hypothesis** and **expected outcome**. These pre-registration fields
@@ -81,9 +93,21 @@ research`) — this skill cannot run without the mechanics layer.
    their selection**. The human is the approval gate — act only on the
    proposals they accept; drop or park the rest.
 
+   Check each proposal against the catalog and the flagged findings the way
+   you already check it against lessons: one that re-treads a known failure
+   mode, or builds on a finding the evaluation contested, must say what is
+   different this time. The researcher is the approval gate, and silent
+   re-treads are exactly what they should not have to catch.
+
 5. **Queue** each accepted proposal (see "Queueing execution" below).
    New-experiment proposals route through `chronicle-propose-experiment`
-   (which owns hypothesis_report + research-prompt mechanics).
+   (which owns hypothesis_report + research-prompt mechanics). Before
+   committing or queueing, call the stage-2 support endpoint
+   (`chronicle.training_support`) — it currently returns an empty
+   `advice_md` with `stub: true`, and calling it anyway is the point: the
+   slot is reserved so config sanity against what this lineage already ran,
+   known-bad hyperparameter combinations, and cost/queue reality can arrive
+   without any skill changing.
 
 6. **Report.** One `chronicle.report_activity` call for the pass —
    `{ "experiment_id": …, "title": "Synthesis: proposed N variations,

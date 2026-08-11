@@ -129,6 +129,16 @@ with an ancestor's).
 Bodies are researcher-visible. Never include secrets, tokens, or raw
 session transcripts; `evidence` carries identifiers only.
 
+## The other half of a researcher correction
+
+When the researcher corrects a wrong premise, record the lesson (this skill)
+**and** file the pattern as a reasoning error when it could recur on a
+different experiment — `report-reasoning-error`, with `user_confirmed: true`
+and this lesson's id. The lesson is the local instance; the reasoning error is
+the pattern, and it is what feeds the platform's failure-mode catalog
+(autoresearch-assist.md §9 Contract 2). A mistake specific to this dataset or
+eval set is a lesson only — do not generalize it.
+
 ## Requires
 
 - `pip install methodic-research` ≥ 0.41 (the lessons namespace), or the

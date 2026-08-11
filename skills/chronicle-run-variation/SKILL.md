@@ -22,6 +22,15 @@ Chronicle. The end state is: the variation's run marked `running` → `succeeded
 (or `failed`), and — when W&B is in play — a `wandb_run` pointer linked to the
 run so `chronicle-write-report` (or any distiller) can fetch the real metrics.
 
+Before triggering, call the stage-2 support endpoint
+(`chronicle.training_support`, or `chronicle.experiments.training_support`).
+It currently returns an empty `advice_md` with `stub: true` — calling it
+anyway is the point: the slot is reserved so config sanity against what this
+lineage already ran, known-bad hyperparameter combinations, and cost/queue
+reality can arrive later without this skill changing
+(autoresearch-assist.md §6). An empty or unavailable response is never an
+error.
+
 **This skill owns two things only: triggering the run lifecycle, and linking
 W&B if available.** It is deliberately agnostic to the training. Whatever your
 code does — a five-step numpy fit or a week-long transformer pretrain — wraps
