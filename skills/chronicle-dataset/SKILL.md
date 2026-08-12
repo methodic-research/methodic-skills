@@ -159,6 +159,15 @@ from methodic import Chronicle
 
 chronicle = Chronicle.from_env()  # CHRONICLE_SERVER_URL + CHRONICLE_API_KEY
 
+# Pre-flight for anything big or unfamiliar — a first upload into a new org, a
+# sharded multi-GB directory. The checks come from other agents' execution
+# failures; an empty list means the catalog has nothing to say, so proceed.
+for c in chronicle.operational_checks.suggest(
+    f"about to upload {path} as a dataset asset",
+    experiment_id=experiment_id,
+)["checks"]:
+    ...  # verify it before moving bytes
+
 # Upload the bytes, record provenance, and link as an input in one call.
 ref = chronicle.datasets.upload(
     path,                                  # file → 1 component; dir → 1 per file
@@ -254,6 +263,9 @@ To share this dataset with a specific person or team, or set its visibility
   you passed `organization_id` on a *linked* upload and it differs from the
   experiment's org. Linked creates inherit the experiment's org/team; drop the
   `organization_id` (it's for standalone/unlinked registration only).
+- **You hit any of these and recovered** — file it with `report-agent-error` as
+  `kind="operational"`. Scope and ACL mistakes here are near-universally
+  repeated by the next agent, which is exactly what the check catalog is for.
 
 ## MCP-native agents
 

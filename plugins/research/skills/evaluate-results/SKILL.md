@@ -113,7 +113,7 @@ install **both** plugins from the `methodic` marketplace.
      via `chronicle.list_lessons` before judging, too — contradicting one
      without addressing it is a factual blocker).
    - **Reasoning errors** — when the *researcher* corrects a mistake in your
-     read, file the pattern as well as the lesson (`report-reasoning-error`,
+     read, file the pattern as well as the lesson (`report-agent-error`,
      `user_confirmed: true`). A human validating an instance in context is
      the best signal the failure-mode catalog gets, and it evaporates when
      the session ends.

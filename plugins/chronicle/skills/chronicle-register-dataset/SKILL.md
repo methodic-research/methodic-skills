@@ -200,6 +200,11 @@ into indexed columns for cheap filtered listing and projects the rest to search.
    *(SDK equivalent: `chronicle.datasets.register_by_reference(uri, name=…,
    metadata=…, size_bytes=…, visibility=…)`.)*
 
+   Registering into an org or a bucket you haven't used before, call
+   `chronicle.suggest_operational_checks` first (prompt: what you are about to
+   register, and where). It returns checks distilled from other agents'
+   scope/permission failures, or nothing at all — both are answers.
+
 3. **Link it as an input** when it belongs to an experiment/variation — that's
    `chronicle-dataset`'s job (`chronicle.link_asset(experiment_id, asset_id,
    link: "input", variation?)`). Registration and linkage are independent: a
@@ -296,6 +301,10 @@ a specific person or team independent of any experiment, use **`chronicle-share`
   tool/endpoint, say so plainly and fall back to `chronicle-dataset`'s
   `register` / upload path (bytes + provenance only, no searchable metadata)
   rather than papering over the gap — and file it with `chronicle-feedback`.
+- **A scope or URI mistake cost you a retry** — `chronicle-feedback` is for
+  *platform* bugs; a mistake that was yours to avoid goes to
+  `report-agent-error` as `kind="operational"`, so the next agent gets it as a
+  pre-flight check instead of rediscovering it.
 
 ## Requires
 

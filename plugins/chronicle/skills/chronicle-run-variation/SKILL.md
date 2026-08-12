@@ -31,6 +31,13 @@ reality can arrive later without this skill changing
 (autoresearch-assist.md §6). An empty or unavailable response is never an
 error.
 
+Also ask what has already gone wrong here — `chronicle.suggest_operational_checks`
+(SDK: `chronicle.operational_checks.suggest`) returns checks distilled from
+other agents' execution failures on this experiment, team, org, and the
+platform. Run them before `run.start`, not after the training has burned an
+hour. An empty `checks` list means the catalog has nothing relevant, which is
+a real answer: proceed.
+
 **This skill owns two things only: triggering the run lifecycle, and linking
 W&B if available.** It is deliberately agnostic to the training. Whatever your
 code does — a five-step numpy fit or a week-long transformer pretrain — wraps
@@ -62,6 +69,16 @@ from methodic import Chronicle
 import os
 
 chronicle = Chronicle.from_env()  # CHRONICLE_SERVER_URL + CHRONICLE_API_KEY
+
+# 0. Pre-flight: what has bitten other agents doing this? Cheap, and the
+#    failures it catches (unset key, wrong scope, missing quota) are the ones
+#    that otherwise surface an hour into training.
+plan = chronicle.operational_checks.suggest(
+    f"about to execute variation {variation} of experiment {experiment_id}",
+    experiment_id=experiment_id,
+)
+for c in plan["checks"]:
+    ...  # run it yourself, or hand the list to a sub-agent, before step 3
 
 # 1. Resolve the run to execute. A just-committed variation has a pending run 0.
 run_number = 0  # or: chronicle.variations.resume(experiment_id, variation).run
@@ -107,6 +124,17 @@ except Exception as e:
     if wb is not None:
         wb.finish(exit_code=1)
     run.fail(reason=f"crash: {e}")
+    # If it failed for an *execution* reason a check could have caught — a
+    # missing credential, an unset env var, the wrong scope — file it so the
+    # check gets written. Not for the training's own numerical failures:
+    # a diverging loss is a result, not a mistake.
+    chronicle.reasoning_errors.report(
+        f"variation {variation} run {run_number} failed to execute",
+        kind="operational",
+        description=f"{type(e).__name__}: {e}",
+        experiment_id=experiment_id,
+        variation=variation,
+    )
     raise
 ```
 
@@ -144,6 +172,10 @@ Tell the user, per variation run:
   W&B ids — omit them so no half-linked pointer is recorded.
 - **Long training** — without periodic `run.heartbeat()` Chronicle marks the run
   `lost` after the heartbeat timeout. Heartbeat from the training loop.
+- **Any of the above bit you** — after recovering, file it with
+  `report-agent-error` as `kind="operational"`. The catalog that
+  `suggest_operational_checks` reads only knows what agents report; a failure
+  you fixed silently will find the next agent too.
 
 ## Requires
 

@@ -133,7 +133,7 @@ session transcripts; `evidence` carries identifiers only.
 
 When the researcher corrects a wrong premise, record the lesson (this skill)
 **and** file the pattern as a reasoning error when it could recur on a
-different experiment — `report-reasoning-error`, with `user_confirmed: true`
+different experiment — `report-agent-error`, with `user_confirmed: true`
 and this lesson's id. The lesson is the local instance; the reasoning error is
 the pattern, and it is what feeds the platform's failure-mode catalog
 (autoresearch-assist.md §9 Contract 2). A mistake specific to this dataset or
