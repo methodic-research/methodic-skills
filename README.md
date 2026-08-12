@@ -251,6 +251,21 @@ hermes skills install https://methodiclabs.ai/.well-known/skills/chronicle-statu
 hermes skills install https://methodiclabs.ai/.well-known/skills/synthesis
 ```
 
+`install` takes one skill at a time — there's no `--all` — so to take the whole
+set, loop over the names in the index:
+
+```bash
+curl -s https://methodiclabs.ai/.well-known/skills/index.json \
+  | jq -r '.skills[].name' \
+  | xargs -n1 -I{} hermes skills install \
+      https://methodiclabs.ai/.well-known/skills/{} --yes
+```
+
+`--yes` skips the per-skill confirmation so the loop runs unattended; it does
+**not** weaken the security scan each install runs (that's `--force`, which
+installs despite a *blocked* verdict — don't use it here). No `jq`? Swap in
+`python3 -c "import json,sys; [print(s['name']) for s in json.load(sys.stdin)['skills']]"`.
+
 The site holds no skill content — it redirects to this repo's raw files, so what
 you install is what's on `main`. Details and the republish flow:
 [`.well-known/README.md`](.well-known/README.md).
