@@ -1,0 +1,65 @@
+name: republish-wellknown
+
+# The Hermes publishing path has one seam CI in this repo cannot close: the
+# `_redirects` block that routes methodiclabs.ai/.well-known/skills/* lives in
+# methodic-research/methodic (chronicle-web), so nothing here can verify — let
+# alone update — it. `gen_wellknown_index.py --check` keeps THIS repo's copy of
+# the block honest; this workflow is the trigger for the other repo.
+#
+# Fires only when the generated fragment actually changes on main (adding,
+# renaming, or removing a skill), and files a tracking issue carrying the
+# paste-ready block. Re-runs update the existing issue instead of stacking
+# duplicates, so a series of skill changes converges on one open task.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.well-known/skills/cloudflare-redirects.txt'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  file-republish-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open or update the republish issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: 'Republish: chronicle-web _redirects block changed'
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          {
+            echo "The generated well-known redirect table changed on \`main\`, so"
+            echo "\`methodiclabs.ai/.well-known/skills/\` is now out of date: skills added"
+            echo "or renamed here are unreachable until the website is republished, and"
+            echo "removed ones still resolve."
+            echo
+            echo "**To close this:** open a PR on \`methodic-research/methodic\` replacing the"
+            echo "block between the \`BEGIN/END generated:\` markers in"
+            echo "\`chronicle-web/home/public/_redirects\` with the block below, then link it here."
+            echo
+            echo "Commit: ${GITHUB_SHA}"
+            echo
+            echo '```'
+            cat .well-known/skills/cloudflare-redirects.txt
+            echo '```'
+          } > "$body"
+
+          existing="$(gh issue list --state open --search "$TITLE in:title" \
+            --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file "$body"
+            gh issue comment "$existing" --body \
+              "Updated for \`${GITHUB_SHA}\` — the block above is current; earlier copies are superseded."
+            echo "updated issue #$existing"
+          else
+            gh issue create --title "$TITLE" --body-file "$body"
+          fi

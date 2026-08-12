@@ -20,6 +20,19 @@ local-green-but-deployed-red drift.
 - **`lint_skills.py`** — every push. Static, no secrets: SKILL.md frontmatter +
   no stale API surface (`active_org`, `X-Chronicle-Active-Owner`,
   `<capability>:<verb>`).
+- **`check_plugin_sync.py`** — PRs into `main`. The repo ships each skill twice
+  (`skills/` + `research-plugin/skills/` for Claude Code, the `plugins/` copies
+  for Codex) and the MCP server twice (`mcp/` + `plugins/chronicle/mcp/`), with
+  nothing generating one side from the other. This catches a fix that landed on
+  one copy only. Two passes: a free inventory + byte compare, then **Sonnet** on
+  just the files that actually differ, judging whether an agent following either
+  copy would *behave* the same (a reworded sentence is not drift; a changed API
+  call is). Findings go to `e2e/logs/plugin-sync.log`. Byte-identical trees make
+  zero model calls, so the usual run is instant and free. Missing or extra files
+  are reported without a key; content differences without a key **SKIP**
+  (exit 0) so fork PRs stay green. Pass `--self-test` to inject a synthetic
+  drifted pair and prove the Sonnet path still works — worth running by hand
+  after touching the checker, since a clean tree never exercises it.
 - **`run_skills_e2e.py`** — PRs into `main` (`.github/workflows/skills-e2e.yml`).
   Authenticates to ci (Auth0 password grant, **no GCP WIF**), mints a key,
   provisions the W&B integration, starts a `menlo-park` worker on the runner
@@ -31,13 +44,23 @@ local-green-but-deployed-red drift.
 | Secret | Value |
 |--------|-------|
 | `CHRONICLE_CI_AUTH_ACCOUNT` | One account from `ci-auth-accounts.json`: `{"client_id","client_secret","accounts":{"<email>":"<password>"}}` |
-| `ANTHROPIC_API_KEY` | Anthropic key for the headless Claude turns |
+| `ANTHROPIC_API_KEY` | Anthropic key for the headless Claude turns **and** the Sonnet pass in `check_plugin_sync.py` |
 | `WANDB_API_KEY` | W&B account key — worker logs with it **and** it provisions the ci W&B integration (same account both sides) |
 
 The ci URL, Auth0 domain, and audience are hardcoded constants in
 `run_skills_e2e.py` (not secrets).
 
 ## Run locally
+
+The sync check needs only the SDK and (for the Sonnet pass) a key:
+
+```bash
+pip install anthropic
+python3 e2e/check_plugin_sync.py              # zero model calls when the trees match
+ANTHROPIC_API_KEY=… python3 e2e/check_plugin_sync.py --self-test
+```
+
+The full flow:
 
 ```bash
 export CHRONICLE_CI_AUTH_ACCOUNT='{"client_id":"…","client_secret":"…","accounts":{"ci_user0@thelaplacian.ai":"…"}}'
