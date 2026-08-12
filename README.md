@@ -174,20 +174,16 @@ skills directories (`skills/` and `research-plugin/skills/`), and the chronicle
 package starts the same local stdio MCP launcher via `sh ./mcp/launch.sh` (the
 research plugin ships no MCP server of its own — it uses the chronicle one).
 
-Inside [Hermes Agent](https://github.com/NousResearch/hermes-agent) — clone the
-repo and register the checkout, which needs **no copies and no edits to the
-skills** (Hermes reads the same `SKILL.md` frontmatter this repo already writes):
+Inside [Hermes Agent](https://github.com/NousResearch/hermes-agent), install
+straight from `methodiclabs.ai` — no clone, no marketplace:
 
 ```bash
-git clone https://github.com/methodic-research/skills.git
-python3 skills/hermes/install.py     # --print to see the YAML without writing
+hermes skills install https://methodiclabs.ai/.well-known/skills/chronicle-status
 ```
 
-That appends both skill directories to `skills.external_dirs` and the Chronicle
-launcher to `mcp_servers` in `$HERMES_HOME/config.yaml` (default `~/.hermes`), so
-all 39 skills load from the checkout and `git pull` is the update path. See
-[`hermes/README.md`](hermes/README.md) for the hand-written config, the
-`hermes skills tap` alternative, and the caveats.
+Hermes reads the same `SKILL.md` format this repo already writes, so nothing is
+forked for it. See [Hermes Agent](#hermes-agent) below for both install routes
+and which to pick.
 
 ### 3. The MCP tools (bundled — zero config)
 
@@ -235,6 +231,71 @@ Claude Desktop can't run Claude Code skills, but it *can* run the same MCP serve
 3. When prompted, paste your `sk_...` API key — or leave it blank to reuse `~/.methodic/credentials.yaml` if you already ran the CLI setup. The server URL defaults to `https://api.methodiclabs.ai`.
 
 The bundle is the same zero-dependency `mcp/server.js` the Claude Code plugin runs, so uploads and credential resolution behave identically. Build it yourself with `bash desktop/build.sh` (writes `desktop/dist/chronicle-<version>.mcpb`).
+
+### Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) reads the same
+`SKILL.md` format this repo already writes — `name` + `description` frontmatter,
+everything else optional — so **no skill is forked for it**. Every skill here
+works in Hermes unmodified, by either route below.
+
+#### Install from methodiclabs.ai
+
+The zero-setup route. `methodiclabs.ai` publishes a
+[well-known skills index](https://methodiclabs.ai/.well-known/skills/index.json),
+so Hermes can install any skill by name:
+
+```bash
+hermes skills search https://methodiclabs.ai
+hermes skills install https://methodiclabs.ai/.well-known/skills/chronicle-status
+hermes skills install https://methodiclabs.ai/.well-known/skills/synthesis
+```
+
+The site holds no skill content — it redirects to this repo's raw files, so what
+you install is what's on `main`. Details and the republish flow:
+[`.well-known/README.md`](.well-known/README.md).
+
+> Prefer this over `hermes skills tap`. A tap is one repo plus one base path and
+> `tap add` refuses a second entry per repo, so it reaches the skills under
+> `skills/` and can never reach the four under `research-plugin/skills/`.
+
+#### Point Hermes at a checkout
+
+Best when you're editing skills or want to track `main` without reinstalling.
+Registers the checkout instead of copying anything into `~/.hermes/skills/`:
+
+```bash
+git clone https://github.com/methodic-research/skills.git
+python3 skills/hermes/install.py     # --print to see the YAML without writing
+```
+
+That appends both skill directories to `skills.external_dirs` and the Chronicle
+MCP launcher to `mcp_servers` in `$HERMES_HOME/config.yaml` (default
+`~/.hermes`). Every skill loads from the checkout, and `git pull` is the update
+path. It's idempotent, backs the config up before writing, and preserves your
+comments when `ruamel.yaml` is importable. Hand-written config, flags, and
+caveats: [`hermes/README.md`](hermes/README.md).
+
+#### Which route
+
+| | Install from the site | Point at a checkout |
+|---|---|---|
+| Setup | One command per skill | Clone + one command, once |
+| Updates | `hermes skills update` | `git pull` |
+| Editing skills locally | No — installs a copy | Yes — edits are live |
+| Needs a checkout | No | Yes |
+
+Both give you the same skills. Either way, run the API-key setup from
+[step 1](#1-create-an-account-and-api-key-the-methodic-ui) first — the skills
+call Chronicle through the same `~/.methodic/credentials.yaml` as everything else.
+
+#### Caveats
+
+- Hermes truncates a skill `description` at 1024 characters (it doesn't reject
+  it). A few skills here exceed that, so the tail of their trigger text is
+  clipped in Hermes' index. They load and work normally.
+- The MCP launcher needs a POSIX `sh`. On bare Windows, use WSL or point Hermes
+  at the remote HTTP MCP server instead.
 
 ## What's inside
 
@@ -302,7 +363,7 @@ How releases reach users:
 1. **The repo is public.** `/plugin marketplace add methodic-research/skills` and `codex plugin marketplace add methodic-research/skills` resolve with the user's git credentials, so anyone can add the marketplace and install — no extra access setup.
 2. **Manifests stay correct.** Claude uses `.claude-plugin/marketplace.json` plus each plugin's manifest (`.claude-plugin/plugin.json` for `chronicle` at the repo root, `research-plugin/.claude-plugin/plugin.json` for `research`); Codex uses `.agents/plugins/marketplace.json` and `plugins/{chronicle,research}/.codex-plugin/plugin.json`. Both expose the same skills; the `mcp/server.js` launcher ships with `chronicle` only (the research plugin has no MCP server of its own).
 3. **Versioning drives updates.** Each plugin.json's `version` is its release knob: bump it to publish a new version of that plugin (users get it via `/plugin marketplace update`). Omit `version` instead to treat every push as a new version during active development.
-4. Users then run the two commands in [step 2](#2-install-the-plugin-the-skills).
+4. Users then run the two commands in [step 2](#2-install-the-plugins-the-skills).
 
 ## Local development
 

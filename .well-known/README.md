@@ -14,6 +14,15 @@ Both are produced by `scripts/gen_wellknown_index.py`, and CI fails if either
 is stale — a skill added or renamed without republishing is a skill nobody can
 install.
 
+Keeping them current has two halves, one automatic and one not:
+
+| Half | Mechanism |
+| --- | --- |
+| This repo's artifacts | `--check` in the `lint` job fails the PR when they're stale. |
+| The website's pasted block | Nothing here can see another repo, so a push to `main` that changes the fragment opens a tracking issue carrying the paste-ready block (`.github/workflows/republish-wellknown.yml`). |
+
+The per-change checklist lives in [`../CLAUDE.md`](../CLAUDE.md).
+
 ```bash
 python3 scripts/gen_wellknown_index.py           # regenerate after adding/renaming a skill
 python3 scripts/gen_wellknown_index.py --check   # what CI runs
