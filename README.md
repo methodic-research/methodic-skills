@@ -174,6 +174,21 @@ skills directories (`skills/` and `research-plugin/skills/`), and the chronicle
 package starts the same local stdio MCP launcher via `sh ./mcp/launch.sh` (the
 research plugin ships no MCP server of its own — it uses the chronicle one).
 
+Inside [Hermes Agent](https://github.com/NousResearch/hermes-agent) — clone the
+repo and register the checkout, which needs **no copies and no edits to the
+skills** (Hermes reads the same `SKILL.md` frontmatter this repo already writes):
+
+```bash
+git clone https://github.com/methodic-research/skills.git
+python3 skills/hermes/install.py     # --print to see the YAML without writing
+```
+
+That appends both skill directories to `skills.external_dirs` and the Chronicle
+launcher to `mcp_servers` in `$HERMES_HOME/config.yaml` (default `~/.hermes`), so
+all 39 skills load from the checkout and `git pull` is the update path. See
+[`hermes/README.md`](hermes/README.md) for the hand-written config, the
+`hermes skills tap` alternative, and the caveats.
+
 ### 3. The MCP tools (bundled — zero config)
 
 Chronicle hosts an **MCP server** (`/v1/mcp/messages`, served by `chronicle-server`) exposing native `chronicle.*` tools — internal search, experiment create/read/commit, move/delete/retract lifecycle, report-write, image + generic asset (dataset) upload + ACL management + orphan hard-delete, research prompts, session search. **The plugin bundles a launcher that wires these up for you** (`.mcp.json` → `mcp/launch.sh`): on install it registers a local stdio MCP server that reads the **same `~/.methodic/credentials.yaml`** and proxies to your Chronicle server — no manual config, no key pasted into a file. It also intercepts `upload_asset`/`upload_image` calls that pass a local `path`, doing presign → PUT → finalize over HTTP so the bytes never pass through the model. (Runtime: the launcher probes for `node` ≥18, then `bun`, then `python3` ≥3.8, and runs a dependency-free stdlib implementation under whichever it finds. Claude Code does **not** bundle Node — only Claude Desktop does — so the Python fallback means a Python-only ML workstation works with nothing extra installed; on Windows without a POSIX `sh`, use the Desktop bundle or the remote HTTP config below. First tool use prompts for approval.) Calling these tools directly is leaner on tokens than the SDK — a structured tool call vs. reading + regenerating SDK code — so MCP-direct is the default for read/CRUD skills.

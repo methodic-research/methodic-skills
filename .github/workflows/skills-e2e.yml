@@ -52,6 +52,37 @@ jobs:
           fi
           grep -q "no supported runtime" probe-err.log
 
+  sync:
+    # The repo ships each skill twice (root trees for Claude Code, plugins/ for
+    # Codex) with nothing generating one from the other. This catches a fix that
+    # landed on one copy only. Byte-identical files cost nothing; only the files
+    # that actually differ are sent to Sonnet, so the usual run makes zero model
+    # calls. Needs a key only for that second pass — missing/extra files are
+    # still reported without one, and a keyless run with content differences
+    # SKIPs (exit 0) so fork PRs stay green.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the Anthropic SDK
+        run: pip install anthropic
+      - name: Check the duplicated plugin trees for drift
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 e2e/check_plugin_sync.py
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-sync-logs
+          path: e2e/logs/
+          if-no-files-found: ignore
+
   e2e:
     # Only the full flow needs secrets + compute; runs on PRs into main.
     if: github.event_name == 'pull_request'
