@@ -253,8 +253,8 @@
       ]
     },
     {
-      "name": "report-reasoning-error",
-      "description": "Use this skill when an AI's *reasoning about research* went wrong — yours or another agent's — and the mistake looks like it could recur elsewhere. PROACTIVELY, without being asked, in two situations. (1) The researcher identifies or confirms a mistake in your reasoning (\"no — that run crashed, it isn't evidence against the hypothesis\", or a redirect that only makes sense if your premise was wrong): record a research lesson AND file a reasoning-error report with user_confirmed. (2) You notice yourself or a peer making a generalizable reasoning error: file the report. Also on request (\"report that as a reasoning error\"). NOT for platform bugs (use methodic-feedback) and NOT for a wrong assumption specific to one experiment's data (that is a research lesson).",
+      "name": "report-agent-error",
+      "description": "Use this skill when an agent got something wrong and it could recur — either the REASONING (a bad inference about the research) or the EXECUTION (a missing credential, an unset env var, steps in the wrong order, the right call against the wrong scope). Formerly report-reasoning-error; it now covers both kinds. PROACTIVELY, without being asked, in three situations. (1) The researcher identifies or confirms a mistake in your reasoning or your execution: record a research lesson AND file a report with user_confirmed. (2) You notice yourself or a peer making a generalizable mistake of either kind. (3) Something failed operationally and a check would have caught it — file it so the check gets written. Also on request (\"report that\"). NOT for platform bugs (use methodic-feedback) and NOT for a wrong assumption specific to one experiment's data (that is a research lesson).",
       "files": [
         "SKILL.md"
       ]
