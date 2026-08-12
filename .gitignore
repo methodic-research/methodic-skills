@@ -1,3 +1,6 @@
 # Claude Desktop bundle build artifacts (see desktop/build.sh)
 desktop/build/
 desktop/dist/
+
+# E2E run logs (uploaded as a CI artifact, never committed)
+e2e/logs/
