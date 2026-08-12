@@ -27,6 +27,11 @@ jobs:
           python-version: "3.12"
       - name: Static skill lint (frontmatter + no stale API surface)
         run: python3 e2e/lint_skills.py
+      - name: Well-known skills index is current
+        # The index + redirect table are generated from the skills themselves,
+        # so a new or renamed skill that isn't republished is unreachable from
+        # the site. Deterministic and secret-less, so it belongs in lint.
+        run: python3 scripts/gen_wellknown_index.py --check
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

@@ -1,0 +1,284 @@
+{
+  "skills": [
+    {
+      "name": "chronicle-author-variation",
+      "description": "Use this skill when the user wants a new variation whose config the AGENT writes by applying a requested change — phrases like \"make a variation that doubles the width\", \"author a variation with lr 1e-3\", \"create a variation that swaps the dataset to X\". This is the LLM-authoring counterpart to `chronicle-prep-variation`: same git flow (mint token, clone, agent branch), but instead of copying the parent config verbatim, the agent reads the parent `config.yaml`, edits it in-context to apply the user's change, then commits/pushes/registers it. Use `chronicle-prep-variation` when the user just wants a scaffold to edit by hand, and `chronicle-fork-variation` when forking a committed variation into a user-owned branch.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-bind-repo",
+      "description": "Use this skill when the user wants their OWN GitHub repository connected to a Chronicle experiment as a live two-way sync — phrases like \"bind my repo\", \"attach my repo to the experiment\", \"use my own GitHub repo\", \"keep my repo in sync with Chronicle\", \"I want the agent's work in my repository\". Binding means: their repo seeds the experiment, their pushes flow IN continuously, and agent work flows BACK as chronicle/* branches they can review/merge under their own policies. Bind-at-create only — an existing experiment cannot be bound later. Do NOT invoke for a plain one-time copy-in of a local checkout (that's `chronicle-import-repo`, the default on-ramp — importing never binds), and never bind unless the user explicitly asked for the connection.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-bundle-variation",
+      "description": "Use this skill when an agent has external training code from a third-party git repo or loose packaged code outside Chronicle's managed experiment repo, and wants a managed Menlo Park worker to install and run it. Example requests: \"bundle my code and run it on a worker\", \"package this external repo as the variation code\", or \"ship my training to a managed Chronicle worker\". It snapshots the local project into a zip, registers the zip as the variation's code_artifact input, and creates the variation. Use this instead of an external git ref when the ref is not durable or Chronicle lacks credentials. Use chronicle-prep-variation or chronicle-author-variation for Chronicle's managed repo, and chronicle-run-variation when the agent runs training itself.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-checkpoint-resume",
+      "description": "Use this skill when an agent/runner with its OWN training code needs to make a Chronicle run durable and reproducible — phrases like \"snapshot the environment\", \"upload checkpoints as it trains\", \"resume training from the last checkpoint\", \"continue the crashed run\". It owns three things: capturing an environment snapshot at run start (library/hardware versions + your custom config state), uploading resumable checkpoints during training, and discovering + downloading the latest checkpoint to resume from. It is training-AGNOSTIC — the training loop is the caller's; this skill never writes it. It is the durable-state companion to chronicle-run-variation (which owns the run lifecycle + W&B linking): run-variation marks the run, this skill makes it survive a crash and continue. Distill afterward with chronicle-write-report.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-collections",
+      "description": "Use this skill ONLY when the user explicitly asks to organize research into a collection — \"make a collection for structural loads\", \"add these papers to the structural-loads collection\", \"group these experiments under hydrodynamics\", \"associate this experiment with the hydrodynamics collection\", \"search only within the hydrodynamics collection\". A collection is a named, ACL'd topic grouping that holds ANY assets (imported PDFs, datasets, reports, arxiv refs) AND experiments — overlapping is fine. Two uses: (a) ASSOCIATE a collection with an experiment so searches run in that experiment's context surface its members (a boost), and (b) SCOPE a search to a collection as a hard filter. Do NOT scope searches to a collection on your own initiative — search broadly by default; only narrow when the user asks. For keyword-labelling individual assets/experiments use chronicle-tags; for plain prior-art search use chronicle-research-survey.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-dataset",
+      "description": "Use this skill when the user or an agent flow wants to upload dataset bytes or training data to a Chronicle experiment, attach data as an experiment or variation input, load or download an existing dataset, register a dataset by reference to gs:// or s3:// bytes, or describe and update dataset metadata so it is searchable. Example requests: \"upload this dataset\", \"register the training data\", \"attach this .npz to the variation\", \"register the dataset already in gs://...\", \"make this dataset searchable\", \"fix the dataset metadata\", \"load the dataset\", or \"download the dataset\". For reports use chronicle-write-report; for variation config changes use chronicle-author-variation.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-delete-asset",
+      "description": "Use this skill when the user (or a cleanup flow) wants to permanently delete Chronicle **assets that are not linked to any experiment** — orphaned uploads: phrases like \"delete these datasets\", \"clean up the assets I uploaded by mistake\", \"purge the orphaned uploads\", \"remove that abandoned pending upload\". Hard delete is refused (409) while an asset is linked as any experiment/variation input or output — linked assets are part of an experiment's record and are taken out of use with deprecate/invalidate instead (`chronicle.assets.deprecate` / `chronicle.assets.invalidate`). For deleting a whole draft experiment (which unlinks its assets), use chronicle-delete-experiment.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-delete-experiment",
+      "description": "Use this skill when the user wants to permanently delete one or more **open (uncommitted)** Chronicle experiments — phrases like \"delete this experiment\", \"remove that draft\", \"I/the agent created too many experiments, clean them up\", \"consolidate these experiments\", \"throw away the experiments I'm not using\". The skill resolves the target experiment(s), shows the user exactly what will be removed, requires an explicit confirmation (delete is irreversible), then hard-deletes each open one via the SDK. Committed or concluded experiments are NOT deleted — the skill reports them and points the user at retraction (`chronicle-retract-experiment` / `chronicle.experiments.retract`) instead. Do not invoke this to undo results on a committed experiment (that's retraction) or to remove a single variation (that's a variation operation).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-distill",
+      "description": "Use this skill when the user wants to synthesize an experiment's findings ACROSS ALL its variations into a single review-gated report — phrases like \"distill the experiment\", \"synthesize the findings\", \"write the takeaways across all variations\", \"summarize what every variation showed\", \"give me the final report for this experiment\". This IS the platform's distillation path (the managed distillation agent was removed with the autoresearch fleet, methodic#642): it pulls every variation (or one variation, or a filtered corpus), reads each one's outputs + W&B metrics, and writes a takeaways_report (experiment scope), variation_report (one variation), or research_report (corpus). The report is registered REVIEW-GATED (not finalized) — it sits pending until the experiment owner approves it, which is also what unblocks conclude. For a single-scope write-up that finalizes immediately use chronicle-write-report instead; for prior-art synthesis use chronicle-research-survey.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-feed",
+      "description": "Use this skill when the user (or an agent acting for them) wants to read their Chronicle activity feed — phrases like \"check my feed\", \"what needs my attention\", \"anything waiting on me\", \"are any agents blocked on me\", \"what's in my inbox\", \"anything awaiting approval\", \"what happened on my experiments\", \"any new reports\", \"show research recommendations\", \"what's new since I last looked\". The feed is the unified event stream: activity (run/experiment lifecycle), the \"needs you\" queue (blocked agents + report approvals + invites), new reports, and research recs — across everything the caller can read. Also use it when an agent consuming the feed as a work queue needs to advance its read pointer after processing events. Read is side-effect-free; advancing the pointer is a separate, explicit step.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-fork-variation",
+      "description": "Use this skill when the user wants to take an existing (usually committed) variation and create a new variation derived from it — phrases like \"fork variation 2\", \"branch off this committed variation and let me modify it\", \"I want to tweak v1 but keep it intact\". Different from `chronicle-prep-variation` (which creates a fresh variation from the experiment's seed) and from forking an entire experiment (use the Chronicle web UI or a future `chronicle-fork-experiment` skill for that).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-history-explorer",
+      "description": "Use this skill when the user wants to explore Chronicle experiment history read-only — phrases like \"what experiments exist about X\", \"show me the lineage of experiment Y\", \"explore the history\", \"what have we tried in this area\", \"where did this experiment come from\". The skill combines semantic search over past experiments and reports (`chronicle.search`), status-filtered browsing (`chronicle.list_experiments`), lineage DAG walks (`chronicle.get_lineage`), and retraction provenance (retracted ancestors in the lineage). Read-only; never mutates anything. Do not invoke for surveying external literature (that's `chronicle-research-survey`, which also hits the literature MCP) or for a fast \"is anything on fire\" run-status check (that's `chronicle-status`).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-import-repo",
+      "description": "Use this skill when the user has an EXISTING body of work — a local research repository, a paper-in-progress with code, a directory of experiments — and wants it turned into a Chronicle experiment. Phrases like \"import this repo into Chronicle\", \"set up an experiment from this repo\", \"turn this project into a Chronicle experiment\", \"how do I upload my files / connect my local directory\", \"onboard this codebase\". Run it inside the checkout: it evaluates the repo (README, paper sources, scripts, deps), confirms a title / hypothesis / research prompt with the user, creates the experiment, pushes the code to the managed repo (or bundles it), attaches paper sources and reports, and anchors a research prompt. The experiment is left OPEN — import never commits. Do not invoke for a from-scratch hypothesis (that's `chronicle-propose-experiment`), for adding code to an experiment that already exists (`chronicle-bundle-variation` / `chronicle-prep-variation`), for an arxiv paper you don't have locally (`chronicle-reproduce-arxiv`), or when the user wants their GitHub repo CONNECTED and kept in sync rather than copied in (`chronicle-bind-repo` — import never binds).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-import-reports",
+      "description": "Use this skill when the user wants to import one or more research-report PDFs into a Chronicle organization's library — phrases like \"import these papers\", \"add this folder of PDFs to the org\", \"register these research reports for the team\", \"bulk import the reading list\". Each PDF becomes an org-scoped `imported_report` asset (sha256-deduped within the org) that the server extracts (math-capable OCR for image-only scans) and indexes into role-filtered search. Organization scope is REQUIRED — these are org-library documents, never personal uploads. For write-ups the agent authors use chronicle-write-report; for training data use chronicle-dataset; arxiv papers arrive via the server-side corpus pipeline, not this skill.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-mint-git-token",
+      "description": "Use this skill when the user wants raw push/pull access to a Chronicle experiment's git repo for a manual workflow — phrases like \"give me a git token\", \"I want to push to the experiment repo from my IDE\", \"what's the clone URL for experiment X\". Returns a 1-hour install token + the HTTPS clone URL. Do not use this for the prep-variation or fork-variation flows — those skills mint their own tokens transparently.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-move-experiment",
+      "description": "Use this skill when the user wants to transfer a Chronicle experiment out of their personal space and into an organization — phrases like \"move this experiment to my org\", \"transfer this to the Acme organization\", \"make this experiment org-wide\", \"put this under the team\", \"consolidate my personal experiments into the org\". The skill resolves the target organization (and optional team), optionally sets the experiment's visibility (private / org-wide / public) in the same call, and performs the transfer via the SDK. It is **personal → org only** — an experiment that already belongs to an org cannot be re-homed (the server refuses with 409). Do not invoke this to change who can read an experiment that's already in an org (that's an ACL/visibility change), or to delete an experiment (that's `chronicle-delete-experiment`).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-prep-variation",
+      "description": "Use this skill when the user wants to start a new variation off an existing Chronicle experiment — phrases like \"create a new variation\", \"start a fresh variation\", \"let me try a tweak of variation 1\". The skill handles the full prep: mints a git token, clones the experiment repo, creates an agent-format branch, drops a config scaffold derived from the parent variation, and registers the new branch as an open variation in Chronicle. Do not invoke for forking an existing committed variation (that's `chronicle-fork-variation`) or for the very first variation 0 (which is created automatically with the experiment).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-propose-experiment",
+      "description": "Use this skill when the user wants to turn a hypothesis into a new Chronicle experiment — phrases like \"propose an experiment\", \"create an experiment for this hypothesis\", \"let's set up an experiment to test X\", \"spin up an experiment from what we just discussed\". The skill drafts the hypothesis (short summary + full document), creates the experiment, attaches the full hypothesis as a `hypothesis_report`, creates and links a research prompt, and optionally commits (locks) the experiment. Do not invoke this for surveying prior art first (that's `chronicle-research-survey`) or for adding a variation to an experiment that already exists (that's `chronicle-prep-variation`).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-publications",
+      "description": "Use this skill when the user wants to register or cite a published work by its DOI, BibTeX, or arXiv id — \"cite this paper\", \"add this DOI as a citation\", \"register this BibTeX\", \"reference arXiv:… in this experiment\", \"cite the paper this builds on\", \"cite this search result\". A publication is a public, shared, immutable reference record (a cited work) keyed by DOI (arXiv papers by id+version); registering one is idempotent (a known work returns the existing record). To cite work that ISN'T published yet, register a draft you own and finalize it later. Citing = linking the publication to an experiment as an input; citation links stay open after commit (they lock at conclusion). Use chronicle-tags for keyword labels and chronicle-collections for topic groupings; this skill is specifically for cited works.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-rebind-variation-git",
+      "description": "Use this skill to switch an existing **open** variation from a bundled `code_artifact` to **git-managed** code: the user has pushed a branch/ref to the experiment's repo and wants to bind it to a variation that was created with a bundle (`chronicle-bundle-variation`), dropping the now-stale bundle. Phrases like \"switch this variation to git\", \"bind my pushed branch to variation 3\", \"use the git branch instead of the bundle for this variation\", \"rebind this variation to a git ref and drop the bundle\". It binds the ref via `chronicle.set_variation_git_ref`, then cleans up the variation's `code_artifact` bundle (`chronicle.unlink_variation_input` + `chronicle.delete_asset`). Works only while the variation is **OPEN** — git-ref binding and input cleanup both freeze at commit. Distinct from `chronicle-bundle-variation` (creates a bundle variation), `chronicle-prep-variation` / `chronicle-author-variation` (create a *fresh* git variation), and `chronicle-fork-variation` (forks a *committed* variation).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-register-dataset",
+      "description": "Use this skill when the user or an agent flow wants to register a dataset that already lives at a gs:// or s3:// URI, author or correct its searchable metadata layer, or list and filter the dataset catalog. Example requests: \"register the dataset already in gs://...\", \"catalog this turbulence corpus\", \"describe this dataset's PDE, boundary conditions, and variables\", \"make this dataset searchable\", \"fix the dataset metadata\", \"what fp64 Navier-Stokes datasets do we have\", or \"list datasets with 3 spatial dims\". This is register-by-reference only: no local byte upload. For uploading or downloading local bytes use chronicle-dataset; for reports use chronicle-write-report; for variation config changes use chronicle-author-variation.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-reproduce-arxiv",
+      "description": "Use this skill when the user wants to reproduce or build on a published arxiv paper in Chronicle — phrases like \"reproduce this arxiv paper\", \"reproduce arXiv:2301.12345\", \"set up an experiment to replicate this paper's results\", \"import this paper and its code\", \"can we reproduce the headline result of <paper>\". Registers the paper as an `arxiv` asset, locates its public code repository (confirmed with the user), clones it, and runs the repository-import core with the paper pre-linked and a reproduction-framed research prompt — all locally, in this session. Do not invoke to merely CITE a paper (that's `chronicle-publications`), to bulk-import PDF libraries (`chronicle-import-reports`), or for a repo the user already has checked out (`chronicle-import-repo`).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-research-lessons",
+      "description": "Use this skill in three situations. (1) PROACTIVELY, without being asked, the moment you realize you have REPEATEDLY made the same bad assumption while working an experiment, or the researcher EXPLICITLY OR IMPLICITLY corrects a wrong premise of yours (\"no — the boundary mask is inverted\", or a redirect that only makes sense if your premise was wrong): record it as a research lesson on the experiment. (2) The user asks — \"record that as a lesson\", \"add a lesson\", \"what lessons do we have\", \"retire that lesson\". (3) BEFORE drawing conclusions or proposing new work on an experiment: list its active lessons (own + inherited) and check your claims against them — contradicting one without addressing it is an error. Lessons are visible on the experiment's Lessons tab and injected into every future agent's context. NOT for platform bugs/gaps — that's methodic-feedback.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-research-survey",
+      "description": "Use this skill when the user wants to survey prior art before starting work — phrases like \"survey the literature on X\", \"what's been tried for Y\", \"research turbulence before I design an experiment\", \"is there prior art on this\". The skill does a two-source survey: (a) Chronicle's INTERNAL corpus — past experiments, their lineage, and internal research docs — via `chronicle.search.history(...)`, and (b) external arxiv/papers via the configured literature MCP. It then synthesizes a prior-art + gaps summary for the user and OPTIONALLY persists it as a `research_report` asset. Do not invoke this for turning a hypothesis into an experiment (that's `chronicle-propose-experiment`) or for read-only browsing of experiment history alone (that's `chronicle-history-explorer`).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-retract-experiment",
+      "description": "Use this skill when the user (or an agent flow) wants to take a **committed or concluded** Chronicle experiment — or a single variation — out of use while preserving the record: phrases like \"retract this experiment\", \"this result turned out to be wrong\", \"flag this as invalid\", \"mark these findings as withdrawn\", \"the bug invalidated those runs\". Retraction is a soft flag with a required reason: the row, lineage, and audit trail survive; the experiment's output assets are invalidated; live agent deployments are torn down; the GitHub repo is archived read-only. For deleting an **open (uncommitted) draft** use chronicle-delete-experiment instead — hard delete is refused once the experiment is committed.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-review-imports",
+      "description": "Use this skill to review/triage research-report PDFs previously imported into a Chronicle org — phrases like \"review the imported reports\", \"check the import for problems\", \"which imported equations/tables were flagged\", \"approve the imported reports\". It inspects each import's server-side extraction + enrichment state (layout parse, math OCR, table/equation annotations), surfaces the objects flagged for human review with their unified annotations and model disagreements, and routes actions: accept (advisory flags need no action), deprecate/invalidate bad imports, approve/reject review-gated imports, or re-enqueue the server jobs. For importing new PDFs use chronicle-import-reports.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-run-variation",
+      "description": "Use this skill when an agent/runner that brought its OWN training code wants to EXECUTE a committed Chronicle variation and record the run — phrases like \"run this variation\", \"train variation 2 and report it\", \"execute the committed variation and log to W&B\". It is training-AGNOSTIC: it drives the Chronicle run lifecycle (start → succeed/fail, with heartbeats) and, when W&B is available, links the run's W&B run so distillation can pull the metrics. The training itself — a tiny CPU fit or a huge multi-GPU architecture — is the caller's; this skill never writes or contains it. Create + commit the variation first with chronicle-author-variation, and distill the results afterward with chronicle-write-report. This is the BYO-agent (self-run) counterpart to Chronicle's managed Menlo Park workers: the agent runs the training, Chronicle records the run.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-share",
+      "description": "Use this skill when the user wants to share a single Chronicle **asset** — a report, dataset, figure, or any uploaded file — independent of the experiment it belongs to. Phrases like \"share this report with @alice\", \"give the ml-team read access to this dataset\", \"make this report public\", \"make just this one report visible to my org\", \"make this asset private again\", \"who can see this asset\", \"stop sharing this with bob\". It grants/revokes per-person or per-team read access and sets an asset's visibility (private / organization / public) via the bundled MCP tools. This shares ONE asset without exposing its whole experiment — to change who can read an entire **experiment**, that's a different concern (manage the experiment's roles); to *move* an asset into an org so it bills there, use `chronicle-move-experiment`'s asset analog (`chronicle.move_asset`); to upload a dataset use `chronicle-dataset` and to write a report use `chronicle-write-report`.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-status",
+      "description": "Use this skill when the user wants a quick read on what's happening with a Chronicle experiment — phrases like \"what's running on experiment X\", \"any failures recently\", \"show me the status of my experiments\", \"what's going on with v2's run\". Returns a structured snapshot: lifecycle state, recent runs and their statuses, any retracted ancestors that affect lineage validity. Read-only; never mutates anything.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-tags",
+      "description": "Use this skill ONLY when the user explicitly asks to tag something or filter by tag — \"tag this as turbulence\", \"tag these experiments turbulence\", \"what's tagged turbulence\", \"find assets tagged X\", \"search only things tagged Y\". A tag is a lightweight, scope-namespaced keyword attached to ANY asset (imported PDFs, datasets, reports, arxiv refs) OR experiment; the same tag marks many objects, and search can filter by tag. Tagging is USER-REQUEST-DRIVEN — do NOT tag things or filter searches by tag on your own initiative; search broadly by default. For heavyweight topic groupings you scope/boost searches around use chronicle-collections; tags are the lighter keyword layer.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "chronicle-write-report",
+      "description": "Use this skill when the user (or an agent flow) wants to attach a written research document to a Chronicle experiment or variation — a post- experiment takeaways/findings write-up, a general research note, or any document where the math and figures matter. Phrases like \"write up the findings\", \"document what we learned\", \"summarize this variation's results\", \"attach a takeaways report\". The document is Markdown + LaTeX math ($…$) that the Methodic UI renders inline with MathJax, plus figures uploaded as image assets (or interactive HTML diagrams as html assets) and embedded by reference. It always includes an explicit \"What didn't work\" section — negative results are part of the record. This is the shared write-up path for both the synthesis flow and the variation flow. For creating the experiment + its hypothesis use chronicle-propose-experiment; for authoring a variation's config use chronicle-author-variation.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "evaluate-results",
+      "description": "Use this skill when the user wants a Chronicle experiment's results judged against what was pre-registered — phrases like \"what do the results say\", \"did it work\", \"evaluate the runs\", \"what worked and what didn't\", \"judge the variations against their hypotheses\", \"read the results of experiment X for me\". It enumerates the variations + runs, pulls the real metrics (`chronicle.wandb_*` mediation tools, `execution_log` assets, attached variation reports), judges each variation against its pre-registered hypothesis / expected outcome, and produces the what-worked / what-didn't / what's-unexplained read. Reading without persisting anything is first-class (\"just tell me what the results say\"); on request it persists findings (`chronicle.record_finding`), lessons (`chronicle.record_lesson`), and a durable report via `chronicle-distill` (review-gated takeaways) or `chronicle-write-report` (immediate single-scope write-up). For deciding what to try next use `synthesis`; for prior-art surveys use `literature-review`.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "fix-error-queue",
+      "description": "Use this skill when the user wants to drain the Chronicle fix queue locally — phrases like \"fix the next error\", \"work on a queued bug\", \"let me PR an error-report fix\". Claims one open root_cause from the fix-queue, reads the triage agent's writeup from the linked GitHub issue, attempts a fix on a branch in the user's local methodic checkout, opens a PR (no autonomous merging), and marks the queue entry as in_fix. Run it repeatedly with the host agent's loop or automation runner to drain the queue.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "literature-review",
+      "description": "Use this skill when the user wants a literature review as part of their research workflow — phrases like \"do a literature review on X\", \"review the literature before we go further\", \"what does the field say about Y\", \"ground this in prior art\", \"find and cite the relevant papers\", \"what's known internally and externally about Z\". Built on `chronicle-research-survey` (Chronicle's internal corpus via `chronicle.search` + external literature via the configured literature MCP) plus `chronicle-publications` for registering and citing what's worth keeping. Adds the research-workflow framing: scope the question, run both sources, synthesize prior art + gaps, register the publications worth citing, optionally persist a `research_report`, and report the activity. No experiment required — \"read for yourself\" is first-class; in an experiment context it links citations as inputs. For the mechanics-only two-source search use `chronicle-research-survey` directly; for turning the gap into an experiment use `chronicle-propose-experiment` (or the aggregate `synthesis` skill).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "methodic-feedback",
+      "description": "Use this skill in two situations. (1) The user asks to send feedback, report a problem, or request a feature — \"file feedback\", \"report this\", \"request a feature\", \"this flow is confusing\", \"tell the Methodic team\". (2) PROACTIVELY, without being asked, whenever a gap or issue is encountered mid-task: the SDK can't express a workflow a skill needs, an MCP tool is missing or misbehaves, a skill's instructions turn out wrong, an API behaves confusingly. Records the feedback to Chronicle's private feedback endpoint immediately (Markdown body), and offers — at the end of the turn, with the user's confirmation — to mirror it as a public GitHub issue on methodic-research/skills filed as the user via gh.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "paper-authoring",
+      "description": "Use this skill when the user wants a paper written from a Chronicle experiment's record — phrases like \"draft the paper\", \"write this up as a LaTeX paper\", \"turn the experiment into a paper\", \"attach the paper to the experiment\", \"revise the paper with the new results\", \"get this ready for Overleaf / arXiv\". It gathers the approved record (takeaways + variation reports, figure image assets, lessons, linked citations), authors the LaTeX locally in the researcher's own working tree / template, and attaches the source via `POST /v1/experiments/{id}/papers` so Chronicle compiles it (chronicle-tex) into an `imported_report` on the experiment — re-attach on meaningful revisions; each attach is a recorded snapshot. Publishing (Overleaf, arXiv, a journal) is the researcher's own git remotes — Chronicle holds the record, not the venue. For the in-app Markdown write-up use `chronicle-write-report`; for the cross-variation synthesis that feeds the paper use `evaluate-results` / `chronicle-distill`.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "report-reasoning-error",
+      "description": "Use this skill when an AI's *reasoning about research* went wrong — yours or another agent's — and the mistake looks like it could recur elsewhere. PROACTIVELY, without being asked, in two situations. (1) The researcher identifies or confirms a mistake in your reasoning (\"no — that run crashed, it isn't evidence against the hypothesis\", or a redirect that only makes sense if your premise was wrong): record a research lesson AND file a reasoning-error report with user_confirmed. (2) You notice yourself or a peer making a generalizable reasoning error: file the report. Also on request (\"report that as a reasoning error\"). NOT for platform bugs (use methodic-feedback) and NOT for a wrong assumption specific to one experiment's data (that is a research lesson).",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "sagemaker",
+      "description": "Use this skill when you need to make a training project run correctly as a Chronicle-launched Amazon SageMaker training job — phrases like \"prepare this variation for SageMaker\", \"run this on SageMaker\", \"train on spot\", \"make it resumable on SageMaker\". It owns three SageMaker-specific things: declaring Python deps in requirements.txt so SageMaker installs them, pointing checkpoints at /opt/ml/checkpoints so SageMaker's continuous S3 sync gives you free same-cloud + spot-interruption resume (Layer 1) while still pushing the canonical checkpoint to GCS for cross-cloud resume (Layer 2), and reading the CHRONICLE_* env the launcher injects so the run reports lifecycle + streams metrics. It is the SageMaker packaging companion to chronicle-checkpoint-resume (the framework-agnostic durable-state skill) and chronicle-run-variation (which owns the run lifecycle + launch). For humans and internal variation agents.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "synthesis",
+      "description": "Use this skill when the user wants the aggregate ideation workflow on a Chronicle experiment (or a research prompt / area) — deciding what to try next and queueing it — phrases like \"what should we try next\", \"run a synthesis pass\", \"propose the next variations\", \"plan and queue the next round\", \"keep the research moving on experiment X\". It grounds in the experiment record (lineage, variations, runs, lessons), invokes `evaluate-results` for the what-worked read and `literature-review` when external grounding is needed, then drafts pre-registered proposals (hypothesis + expected outcome required) and — only for the ones the user accepts — queues execution: `chronicle.propose_variation` for config-only changes, the variation-authoring skills first for code changes, `chronicle-propose-experiment` for a child experiment. The human is the approval gate — nothing is committed or queued without explicit acceptance. For the evaluation alone use `evaluate-results`; for a survey alone use `literature-review`; for turning one already-formed hypothesis into an experiment use `chronicle-propose-experiment` directly.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "triage-error-queue",
+      "description": "Use this skill when the user wants to drain the Chronicle error-report triage queue locally — phrases like \"triage the error queue\", \"process one error report\", \"let me look at incoming bugs\". Claims one pending_triage error_report, gathers context (GitHub Issues search, Vertex semantic matches, code excerpts), reasons about whether it matches an existing root cause or is genuinely new, and submits a structured verdict back to Chronicle. The server persists root_causes and files GitHub issues on the operator's behalf — this skill never writes to GitHub directly. Run it repeatedly with the host agent's loop or automation runner to drain the queue.",
+      "files": [
+        "SKILL.md"
+      ]
+    }
+  ]
+}
