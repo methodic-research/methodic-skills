@@ -3,9 +3,9 @@
 
 Hermes' hub can install skills from any domain that exposes
 `/.well-known/skills/index.json` (`WellKnownSkillSource` in hermes-agent). That
-route is how *all 39* skills become installable by name — the `hermes skills
-tap` route can't, because a tap is one repo plus one base path and `tap add`
-refuses a second entry per repo, so it only ever reaches the 35 under `skills/`.
+route is how *every* skill becomes installable by name — the `hermes skills tap`
+route can't, because a tap is one repo plus one base path and `tap add` refuses
+a second entry per repo, so it only ever reaches the ones under `skills/`.
 
 Hermes derives every fetch URL from the index URL — `{index_url_dir}/{name}/
 SKILL.md` — and an index entry cannot name a different host (`files` entries are
@@ -100,6 +100,20 @@ def parse_frontmatter(text: str) -> Dict[str, str]:
     return fields
 
 
+def skill_files(skill_dir: pathlib.Path) -> List[str]:
+    """Every file in a skill, SKILL.md first, as repo-relative posix paths.
+
+    Hermes validates these as relative paths and refuses a bundle without a
+    SKILL.md, so the ordering is cosmetic but the completeness is not.
+    """
+    files = sorted(
+        p.relative_to(skill_dir).as_posix()
+        for p in skill_dir.rglob("*")
+        if p.is_file() and "__pycache__" not in p.parts
+    )
+    return ["SKILL.md"] + [f for f in files if f != "SKILL.md"]
+
+
 def collect() -> List[Dict[str, str]]:
     """Every skill, as {name, description, repo_path}, sorted by name."""
     skills: List[Dict[str, str]] = []
@@ -123,6 +137,11 @@ def collect() -> List[Dict[str, str]]:
                 "name": name,
                 "description": fields.get("description", ""),
                 "repo_path": f"{root_rel}/{skill_md.parent.name}",
+                # Enumerated, not hardcoded to ["SKILL.md"]: Hermes fetches
+                # exactly the files an entry advertises, so a skill that later
+                # grows references/ or scripts/ would publish as a bare
+                # SKILL.md with its support files silently missing.
+                "files": skill_files(skill_md.parent),
             })
 
     skills.sort(key=lambda s: s["name"])
@@ -140,7 +159,7 @@ def render_index(skills: List[Dict[str, str]]) -> str:
             {
                 "name": s["name"],
                 "description": s["description"],
-                "files": ["SKILL.md"],
+                "files": s["files"],
             }
             for s in skills
         ]
@@ -152,10 +171,14 @@ def render_redirects(skills: List[Dict[str, str]]) -> str:
     index_src = f"{SITE_PATH}/index.json"
     index_dst = f"{RAW_BASE}/.well-known/skills/index.json"
 
+    # A row per advertised FILE, not per skill: Hermes fetches every path in an
+    # entry's `files` and fails the whole install if one 404s, so a skill that
+    # grows references/ needs a redirect for each of them too.
     rows = [(index_src, index_dst)]
     rows += [
-        (f"{SITE_PATH}/{s['name']}/SKILL.md", f"{RAW_BASE}/{s['repo_path']}/SKILL.md")
+        (f"{SITE_PATH}/{s['name']}/{rel}", f"{RAW_BASE}/{s['repo_path']}/{rel}")
         for s in skills
+        for rel in s["files"]
     ]
     width = max(len(src) for src, _ in rows)
     body = "\n".join(f"{src.ljust(width)}  {dst}  302" for src, dst in rows)
