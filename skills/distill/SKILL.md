@@ -145,6 +145,19 @@ metrics = variation_metrics(chronicle, experiment_id)   # real W&B numbers
 #    metrics from `metrics`. Write the negative-results section in good faith.
 markdown_summary = "...the agent writes the cross-variation synthesis here..."
 
+# 2b. Check the conclusions against the record before they become a report
+#     (autoresearch-assist.md §9 Contract 1). A report asserting a claim the
+#     record contradicts is the exact case this exists to prevent — and a
+#     report is much harder to walk back than a draft.
+check = chronicle.experiments.evaluation_support(
+    experiment_id, text=markdown_summary
+)
+# Advisory: nothing is blocked. Fix what it flags, or say in the report why
+# the flag is wrong. `unverifiable` entries are what it could NOT check —
+# state those as unchecked rather than implying they passed. A 503 (no LLM
+# resolved) or an older server without the endpoint is non-fatal: continue,
+# and say the write-up was not checked.
+
 # 3. Register the report REVIEW-GATED (pending + review_required) — NOT finalized.
 asset_type = {"experiment": "takeaways_report",
               "variation":  "variation_report",

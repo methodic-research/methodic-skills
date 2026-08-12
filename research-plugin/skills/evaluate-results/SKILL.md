@@ -80,7 +80,29 @@ install **both** plugins from the `methodic` marketplace.
    - **What's unexplained** — results neither hypothesis nor lessons
      account for; these are `synthesis` fodder.
 
-4. **Optionally persist** (per `persist`, user-requested):
+4. **Check the read against the record** — the stage-3 support call
+   (`chronicle.evaluation_support`). Pass the findings you are about to
+   record (same shape as `chronicle.record_finding`) and/or the assembled
+   text. Chronicle assembles what your session cannot see — the sibling
+   variations' config differences, how many runs and seeds actually
+   finished, whether the cited run crashed, each variation's
+   pre-registration, the lineage's active lessons, the metrics as logged,
+   and the failure-mode catalog — and returns a verdict per claim, the
+   assumptions each rests on, matched failure modes, and what it could
+   **not** check.
+
+   It is advisory and nothing is blocked. Present the flags with the read
+   and resolve them before persisting: fix the claim, or say why the flag
+   is wrong. Consult `chronicle.list_failure_modes` for the kinds of claim
+   you are about to make — a claim that obviously trips one is cheaper to
+   fix now than to adjudicate later. An empty or unavailable response is
+   never an error: continue, exactly as with a missing
+   `chronicle.report_activity`.
+
+   Recording a finding **also** triggers an evaluation on its own, so this
+   call is for seeing the verdict *before* the judgment lands.
+
+5. **Optionally persist** (per `persist`, user-requested):
    - **Findings** — one `chronicle.record_finding` per variation judged:
      `{ status: working | partial | not_working, summary: <the signal in a
      sentence>, evidence_variation: <index> }`. The server keeps one
@@ -90,6 +112,11 @@ install **both** plugins from the `methodic` marketplace.
      `chronicle.record_lesson` (list first to dedup; check existing lessons
      via `chronicle.list_lessons` before judging, too — contradicting one
      without addressing it is a factual blocker).
+   - **Reasoning errors** — when the *researcher* corrects a mistake in your
+     read, file the pattern as well as the lesson (`report-reasoning-error`,
+     `user_confirmed: true`). A human validating an instance in context is
+     the best signal the failure-mode catalog gets, and it evaporates when
+     the session ends.
    - **The durable report** — invoke **`chronicle-distill`** for the
      cross-variation `takeaways_report` (review-gated: it sits pending
      until the owner approves, which is also what unblocks conclude) or
@@ -98,7 +125,7 @@ install **both** plugins from the `methodic` marketplace.
      Never conclude the experiment yourself — approval and conclude are the
      owner's calls.
 
-5. **Report the milestone.** `chronicle.report_activity` —
+6. **Report the milestone.** `chronicle.report_activity` —
    `{ "experiment_id": …, "title": "Evaluated results across N variations
    (M runs)", "summary_md": <the one-paragraph read>, "asset_ids":
    [<report asset, if one was written>] }`. One activity per evaluation
@@ -118,9 +145,12 @@ Present, in order:
    (working / partial / not_working).
 3. What didn't work, and what's unexplained — called out even when the
    headline is a success.
-4. What was persisted (finding count, lessons, report asset id + that a
-   distilled takeaways report is **pending owner review**), or that
-   nothing was, by request.
+4. Any verdicts the evaluation support returned — what it flagged, what it
+   could not check, and how you resolved each. A flag you disagree with is
+   worth stating rather than dropping.
+5. What was persisted (finding count, lessons, reasoning errors, report
+   asset id + that a distilled takeaways report is **pending owner
+   review**), or that nothing was, by request.
 
 ## Failure modes
 
@@ -135,6 +165,10 @@ Present, in order:
   `synthesis` skill enforces it).
 - **`record_finding` / `record_lesson` 403 or unavailable**: non-fatal —
   the read stands; surface it and continue.
+- **`chronicle.evaluation_support` unavailable** (older server) or a 503
+  (no LLM resolved for this principal): non-fatal — say the read was not
+  checked against the record and continue. Never present an unchecked read
+  as a checked one.
 - **Nothing in scope** (zero non-retracted variations, or no runs yet):
   say so rather than evaluating an empty record.
 
