@@ -100,6 +100,15 @@ web UI to mint an API key — agents cannot bootstrap credentials.
    from methodic import Chronicle
    chronicle = Chronicle.from_env()
 
+   # What has gone wrong for other agents pushing into a managed repo? The
+   # catalog is built from their reports — token scope, protected branches,
+   # a dirty tree nobody checked. Empty `checks` means nothing relevant; go.
+   for c in chronicle.operational_checks.suggest(
+       "about to push an imported repository into a managed Chronicle repo",
+       experiment_id=experiment_id,
+   )["checks"]:
+       ...  # verify it before minting the token
+
    git_state = chronicle.experiments.git_status(experiment_id)
    assert git_state["state"] == "ready"   # pending → retry in ~10s; degraded → bundle path
    token = chronicle.experiments.mint_git_token(experiment_id)  # 1-hour install token
@@ -232,6 +241,10 @@ Tell the user:
   call, and if it keeps failing tell the user exactly which step to re-run.
 - **Dirty working tree on the push path** — see step 4: commit with the
   user's OK or switch to the bundle.
+- **Any of the above cost you a retry** — file it with `report-agent-error` as
+  `kind="operational"` once you are past it. Import is the skill where an
+  agent burns the most time on execution mistakes, and the pre-flight in step
+  4 only knows what earlier agents bothered to report.
 
 ## Requires
 
