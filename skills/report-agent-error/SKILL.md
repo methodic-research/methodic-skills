@@ -126,7 +126,12 @@ session ends. File **both**, without being asked:
 lesson = chronicle.experiments.record_lesson(
     experiment_id,
     title="A crashed run is not evidence against the hypothesis",
-    body_md="...wrong assumption, correction, evidence, what to do instead...",
+    body={                          # the four fields — see `research-lessons`
+        "believed": "the v3 result refuted the hypothesis",
+        "correction": "that run OOM'd at step 200; it never tested anything",
+        "evidence": "run 1 exit 137, no eval past step 200",
+        "instead": "check terminal status before reading a run as evidence",
+    },
     origin="researcher_correction",
 )
 

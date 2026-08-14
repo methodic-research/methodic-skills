@@ -64,13 +64,13 @@ existing = chronicle.experiments.list_lessons(experiment_id)  # active, own + in
 # ... if one matches, refine:
 chronicle.experiments.update_lesson(
     experiment_id, lesson_id,
-    body_md=sharper_body,          # absent fields unchanged; retired lessons are immutable
+    body=sharper_body,             # send the WHOLE body — it re-renders as a unit
 )
 # ... else record:
 lesson = chronicle.experiments.record_lesson(
     experiment_id,
     title="Never trust post-4200 eval loss on dataset X",   # one line, imperative
-    body_md=body,                  # see body contract below
+    body=body,                     # the four fields; see body contract below
     origin="researcher_correction",
     category="data",               # assumption (default) | methodology | environment | data | other
     variation=7,                   # when it arose from one variation
@@ -83,21 +83,49 @@ MCP-native agents have the same four tools: `chronicle.record_lesson`,
 `chronicle.list_lessons`, `chronicle.update_lesson`,
 `chronicle.retire_lesson`.
 
-## Body contract
+## Body contract — send the fields
 
-The reader has no session context. `body_md` must be self-contained
-Markdown carrying, in order: **the wrong assumption** (what was believed),
-**the correction** (what is actually true), **the evidence** (cite the
-run / metric / shard the `evidence` pointers name), and **what to do
-instead**. Keep it to a short paragraph — the title carries the
-imperative.
+The reader has no session context, so a lesson has always had to carry
+four things. They are now **fields**, not prose you compose in the right
+order:
+
+```python
+body={
+    "believed":   "post-4200 eval loss on dataset X is trustworthy",
+    "correction": "the eval set leaks past step 4200",
+    "evidence":   "run 3 — eval loss drops 0.31 while train loss is flat",
+    "instead":    "cut eval at 4200, or re-split the dataset",
+}
+```
+
+All four are required together. If you only have three, you do not yet
+have a lesson — write what you have as prose in `body_md` instead and
+sharpen it later.
+
+Two more are optional, and **omit them rather than guess**:
+
+- `applies_to` — where this holds. Free text: `"dataset:turbulence-256"`,
+  `"any transformer under 1B"`, `"always"`.
+- `confidence` — `"high"` | `"medium"` | `"low"`.
+
+A field you invent to fill the schema is worse than a field left empty:
+it reads as something you established.
+
+**`body_md` is rendered from `body` by the server** — never write both.
+A lesson recorded before this existed carries prose only; refining one of
+its fields is what gives it structure.
+
+Keep each field to a sentence or two — the title carries the imperative.
 
 ## The consultation contract (conclusions + proposals)
 
 Any time you are about to **conclude** something (a report, a takeaways
 section, a finding) or **propose** new work (a variation), list the
-active lessons first (they are also injected into your
-`~/.claude/CLAUDE.md` at spawn — the tool is the fresh source):
+active lessons first. **Call the tool — do not assume they are already in
+your context.** A managed Chronicle agent gets a `## Research lessons`
+section written into its `~/.claude/CLAUDE.md` at spawn, but that is one
+narrow path; if you are running anywhere else, nothing put them there,
+and even when it did the section is a snapshot from spawn time:
 
 - A conclusion that **contradicts an active lesson without explicitly
   addressing it** is an error — reviewers raise it as a factual blocker.
